@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shadow Zone — Sequence + Platoon + USS</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f8f9fa;
+    --bg3: #f1f3f5;
+    --surface: #ffffff;
+    --border: #e9ecef;
+    --border2: #dee2e6;
+    --text: #1a1a2e;
+    --text2: #6c757d;
+    --text3: #adb5bd;
+    --accent: #c62828;
+    --accent-bg: rgba(198,40,40,0.06);
+    --green: #2e7d32;
+    --green-bg: rgba(46,125,50,0.07);
+    --red: #c62828;
+    --red-bg: rgba(198,40,40,0.06);
+    --blue: #1565c0;
+    --blue-bg: rgba(21,101,192,0.06);
+    --orange: #e65100;
+    --orange-bg: rgba(230,81,0,0.06);
+    --purple: #6a1b9a;
+    --purple-bg: rgba(106,27,154,0.06);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; -webkit-font-smoothing:antialiased; }
+
+  .header { padding:24px 32px 20px; border-bottom:1px solid var(--border); }
+  .header-row { display:flex; align-items:center; gap:12px; margin-bottom:4px; }
+  .header h1 { font-size:20px; font-weight:700; letter-spacing:-0.4px; }
+  .header .tag { font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:0.8px; background:var(--accent-bg); color:var(--accent); padding:3px 8px; border-radius:4px; }
+  .header .tag-uss { background:var(--purple-bg); color:var(--purple); }
+  .header p { font-size:13px; color:var(--text2); margin-top:2px; }
+
+  .content { padding:0 32px 40px; }
+
+  .stats { display:flex; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:20px 0 24px; }
+  .stat { flex:1; background:var(--surface); padding:14px 16px; }
+  .stat .label { font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:1.2px; color:var(--text3); text-transform:uppercase; margin-bottom:4px; }
+  .stat .val { font-family:var(--mono); font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+  .stat .sub { font-size:11px; color:var(--text3); margin-top:1px; }
+
+  .tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:24px; }
+  .tab { padding:10px 20px; font-family:var(--sans); font-size:13px; font-weight:500; color:var(--text2); background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all 0.12s; }
+  .tab:hover { color:var(--text); }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+
+  .grid { display:grid; gap:16px; }
+  .grid-2 { grid-template-columns:1fr 1fr; }
+
+  .panel { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; }
+  .panel-head { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:var(--text2); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+  .panel-head .dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+  .panel-desc { font-size:12px; color:var(--text3); margin-bottom:14px; }
+
+  .bars { display:flex; flex-direction:column; gap:6px; }
+  .bar-row { display:flex; align-items:center; gap:8px; }
+  .bar-lbl { width:110px; text-align:right; font-family:var(--mono); font-size:11px; color:var(--text2); flex-shrink:0; }
+  .bar-track { flex:1; height:24px; background:var(--bg2); border-radius:4px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:8px; transition:width 0.4s ease; min-width:38px; }
+  .bar-val { font-family:var(--mono); font-size:10px; font-weight:700; color:#fff; white-space:nowrap; }
+  .bar-n { width:52px; text-align:right; font-family:var(--mono); font-size:10px; color:var(--text3); flex-shrink:0; }
+
+  .note { background:var(--bg2); border-left:3px solid var(--accent); padding:12px 14px; border-radius:0 6px 6px 0; font-size:13px; line-height:1.6; margin-top:14px; }
+  .note strong { color:var(--accent); }
+  .note.uss-note { border-left-color:var(--purple); }
+  .note.uss-note strong { color:var(--purple); }
+
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-family:var(--mono); font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text3); padding:8px 10px; border-bottom:2px solid var(--border2); }
+  td { padding:7px 10px; font-family:var(--mono); font-size:12px; border-bottom:1px solid var(--border); }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:var(--bg2); }
+  .up { color:var(--green); font-weight:600; }
+  .dn { color:var(--red); font-weight:600; }
+  .uss-val { color:var(--purple); font-weight:600; }
+
+  .controls { display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+  select,.search { font-family:var(--sans); font-size:13px; padding:7px 12px; border:1px solid var(--border2); border-radius:6px; background:var(--surface); color:var(--text); outline:none; transition:border-color 0.15s; }
+  select:focus,.search:focus { border-color:var(--accent); }
+  select { min-width:160px; cursor:pointer; }
+  .search { min-width:220px; }
+  .search::placeholder { color:var(--text3); }
+
+  .chips { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:14px; max-height:100px; overflow-y:auto; }
+  .chips::-webkit-scrollbar { width:3px; }
+  .chips::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+  .chip { padding:4px 10px; border-radius:4px; font-family:var(--mono); font-size:11px; font-weight:500; color:var(--text2); background:var(--bg2); border:1px solid var(--border); cursor:pointer; transition:all 0.1s; white-space:nowrap; }
+  .chip:hover { border-color:var(--accent); color:var(--text); }
+  .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+
+  .clickable { cursor:pointer; }
+  .clickable:hover td { background:var(--bg3); }
+  .link-name { color:var(--blue); cursor:pointer; text-decoration:none; }
+  .link-name:hover { text-decoration:underline; }
+
+  .zone-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; max-width:320px; margin:0 auto; }
+  .zone-cell { padding:10px 6px; border-radius:6px; text-align:center; border:1px solid var(--border); }
+  .zone-cell .zn { font-family:var(--mono); font-size:9px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+  .zone-cell .zv { font-family:var(--mono); font-size:14px; font-weight:700; }
+  .zone-cell .zp { font-family:var(--mono); font-size:10px; color:var(--text2); margin-top:2px; }
+  .framing-summary { display:flex; gap:16px; align-items:center; justify-content:center; margin-bottom:16px; flex-wrap:wrap; }
+  .framing-summary .fs-val { font-family:var(--mono); font-size:28px; font-weight:700; }
+  .framing-summary .fs-lbl { font-family:var(--mono); font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.8px; }
+
+  .p-card { display:flex; align-items:center; gap:16px; border:1px solid var(--border); border-radius:8px; padding:14px 18px; margin-bottom:16px; background:var(--bg2); flex-wrap:wrap; }
+  .p-card .name { font-size:17px; font-weight:700; letter-spacing:-0.3px; }
+  .p-card .meta { display:flex; gap:8px; margin-top:3px; font-family:var(--mono); font-size:11px; color:var(--text2); flex-wrap:wrap; }
+  .p-card .meta .t { background:var(--bg3); padding:1px 7px; border-radius:3px; font-weight:500; }
+  .p-card .cs { margin-left:auto; font-family:var(--mono); font-size:26px; font-weight:700; padding:4px 14px; border-radius:6px; }
+  .p-card .badges { margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .p-card .badge { text-align:center; padding:4px 14px; border-radius:6px; }
+  .p-card .badge .badge-val { font-family:var(--mono); font-size:22px; font-weight:700; }
+  .p-card .badge .badge-lbl { font-family:var(--mono); font-size:8px; font-weight:600; letter-spacing:0.8px; text-transform:uppercase; color:var(--text3); margin-top:1px; }
+
+  .mu-tabs { display:flex; gap:4px; margin-bottom:16px; }
+  .mu-btn { padding:6px 12px; border-radius:5px; font-family:var(--mono); font-size:11px; font-weight:500; color:var(--text2); background:var(--bg2); border:1px solid var(--border); cursor:pointer; transition:all 0.1s; }
+  .mu-btn:hover { border-color:var(--blue); color:var(--text); }
+  .mu-btn.on { background:var(--blue); color:#fff; border-color:var(--blue); font-weight:600; }
+
+  .edge-map { position:relative; width:220px; height:260px; margin:0 auto; }
+  .edge-zone { position:absolute; display:flex; align-items:center; justify-content:center; flex-direction:column; font-family:var(--mono); border-radius:4px; transition:all 0.2s; }
+  .edge-zone .r { font-size:17px; font-weight:700; }
+  .edge-zone .n { font-size:9px; opacity:0.6; }
+  .sz-outline { position:absolute; border:2px solid var(--border2); border-radius:2px; }
+
+  .team-name { font-size:18px; font-weight:700; margin-bottom:4px; }
+  .team-sub { font-family:var(--mono); font-size:11px; color:var(--text2); margin-bottom:16px; }
+
+  .loading { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; gap:12px; }
+  .spin { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp 0.7s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  .hidden { display:none !important; }
+
+  @media (max-width:860px) {
+    .grid-2 { grid-template-columns:1fr; }
+    .header,.content { padding-left:16px; padding-right:16px; }
+    .stats { flex-wrap:wrap; }
+    .stat { min-width:140px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="load" class="loading">
+  <div class="spin"></div>
+  <span style="font-size:13px;color:var(--text2)">Loading shadow zone data…</span>
+</div>
+
+<div id="app" class="hidden">
+  <div class="header">
+    <div class="header-row">
+      <h1>Shadow Zone Module</h1>
+      <span class="tag" id="tag">2025</span>
+      <span class="tag tag-uss hidden" id="tag-uss">USS ENABLED</span>
+    </div>
+    <p id="header-desc"></p>
+  </div>
+  <div class="content">
+    <div class="stats" id="stats"></div>
+    <div class="tabs" id="tb">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="platoon">Platoon Splits</button>
+      <button class="tab" data-tab="pitchers">Pitcher Profiles</button>
+      <button class="tab" data-tab="team">Team View</button>
+      <button class="tab" data-tab="catchers">Catchers</button>
+    </div>
+
+    <div id="tab-overview" class="tp">
+      <div class="grid grid-2">
+        <div class="panel">
+          <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> CS Rate by Sequence Category</div>
+          <div class="panel-desc">Called strike rate based on what pitch type preceded the current pitch.</div>
+          <div id="ov-bars"></div>
+          <div class="note" id="ov-note"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Sequence Pair Rates</div>
+          <div class="panel-desc">Specific prev→current pitch category CS rates across the league.</div>
+          <div id="ov-tbl"></div>
+        </div>
+      </div>
+      <div id="ov-uss" class="hidden" style="margin-top:16px;">
+        <div class="panel">
+          <div class="panel-head"><span class="dot" style="background:var(--purple)"></span> ABS Challenge Economy</div>
+          <div class="panel-desc">Under ABS, stolen strikes split into challenge-proof (USS) and contestable. Low-leverage situations produce durable framing value.</div>
+          <div class="note uss-note" id="ov-uss-note"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-platoon" class="tp hidden">
+      <div class="controls" style="margin-bottom:12px;">
+        <select id="pl-team" onchange="setPLTeam(this.value)"><option value="LEAGUE">League Average</option></select>
+        <span id="pl-team-label" style="font-family:var(--mono);font-size:11px;color:var(--text3);"></span>
+      </div>
+      <div class="mu-tabs" id="mu"></div>
+      <div class="grid grid-2">
+        <div class="panel">
+          <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Edge CS Rate Map</div>
+          <div class="panel-desc">Called strike rate by zone edge. Higher = more umpire strikes at that edge.</div>
+          <div style="display:flex;justify-content:center;padding:16px 0;">
+            <div class="edge-map">
+              <div class="sz-outline" style="left:36px;top:26px;width:148px;height:208px;"></div>
+              <div class="edge-zone" id="ez-top" style="left:54px;top:0;width:112px;height:40px;"></div>
+              <div class="edge-zone" id="ez-bot" style="left:54px;top:220px;width:112px;height:40px;"></div>
+              <div class="edge-zone" id="ez-in" style="left:0;top:72px;width:50px;height:116px;"></div>
+              <div class="edge-zone" id="ez-out" style="left:170px;top:72px;width:50px;height:116px;"></div>
+              <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:9px;color:var(--text3);text-align:center;letter-spacing:1px;">STRIKE<br>ZONE</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Edge Vulnerability</div>
+          <div class="panel-desc">Which edges are most/least protected in this matchup.</div>
+          <div id="pl-bars"></div>
+          <div class="note" id="pl-note"></div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:16px;">
+        <div class="panel-head"><span class="dot" style="background:var(--orange)"></span> All Matchup Comparison</div>
+        <div id="pl-cmp"></div>
+      </div>
+    </div>
+
+    <div id="tab-pitchers" class="tp hidden">
+      <div class="controls">
+        <select id="p-team" onchange="filt()"><option value="ALL">All Teams</option></select>
+        <input class="search" id="p-srch" type="text" placeholder="Search pitcher…" oninput="filt()">
+      </div>
+      <div class="chips" id="p-chips"></div>
+      <div id="p-card"></div>
+      <div class="grid grid-2">
+        <div class="panel">
+          <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Sequence Profile</div>
+          <div class="panel-desc">Shadow zone CS rate by pitch sequencing.</div>
+          <div id="p-seq"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Platoon Edge Profile</div>
+          <div class="panel-desc">Called strike rate by edge and batter handedness.</div>
+          <div id="p-plat"></div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:16px;">
+        <div class="panel-head"><span class="dot" style="background:var(--orange)"></span> Catcher Battery Splits</div>
+        <div class="panel-desc">How this pitcher's shadow zone CS rate changes by catcher (min 30 decisions).</div>
+        <div id="p-catchers"></div>
+      </div>
+      <div class="panel" style="margin-top:16px;">
+        <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Scouting Note</div>
+        <div class="note" id="p-note"></div>
+      </div>
+    </div>
+
+    <div id="tab-team" class="tp hidden">
+      <div class="controls">
+        <select id="t-sel" onchange="teamView()"><option value="">Select a team…</option></select>
+      </div>
+      <div id="t-body"></div>
+    </div>
+
+    <div id="tab-catchers" class="tp hidden">
+      <div class="controls">
+        <select id="c-team" onchange="filtC()"><option value="ALL">All Teams</option></select>
+        <input class="search" id="c-srch" type="text" placeholder="Search catcher…" oninput="filtC()">
+      </div>
+      <div id="c-rank"></div>
+      <div id="c-detail" class="hidden">
+        <div id="c-card"></div>
+        <div class="grid grid-2">
+          <div class="panel">
+            <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Edge Profile</div>
+            <div class="panel-desc">Called strike rate by shadow zone edge for this catcher.</div>
+            <div id="c-edges"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Pitcher Battery Splits</div>
+            <div class="panel-desc">How this catcher's CS rate varies by pitcher (min 30 decisions).</div>
+            <div id="c-pairs"></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel-head"><span class="dot" style="background:var(--orange)"></span> Savant Framing</div>
+          <div class="panel-desc">Run values and CS% by shadow zone region (Baseball Savant catcher framing).</div>
+          <div id="c-framing"></div>
+        </div>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Framing Note</div>
+          <div class="note" id="c-note"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let D,curP,curC,curMU='LHP_vs_RHB';
+var pitcherToCatchers={};
+var hasUSS=false; // global flag: did the pipeline run?
+
+(async()=>{
+  try{
+    const r=await fetch('./shadow_zone_2025_full.json');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    D=await r.json(); boot();
+  }catch(e){
+    document.getElementById('load').innerHTML='<div style="color:var(--red)">Failed: '+e.message+'</div><div style="color:var(--text3);font-size:12px;margin-top:6px">Ensure shadow_zone_2025_full.json is in the same directory.</div>';
+  }
+})();
+
+function boot(){
+  // Detect USS data
+  hasUSS=D.summary.uss_total!=null&&D.summary.uss_total>0;
+
+  // Normalize PCP keys
+  if(D.pitcherCatcherPairs&&D.catcherMeta){
+    const metaLower={};
+    Object.keys(D.catcherMeta).forEach(n=>{metaLower[n.toLowerCase()]=n;});
+    const rawPCP=D.pitcherCatcherPairs;
+    D.pitcherCatcherPairs={};
+    Object.entries(rawPCP).forEach(([k,v])=>{D.pitcherCatcherPairs[metaLower[k]||k]=v;});
+  }
+
+  // Reverse index: pitcher → catchers
+  if(D.pitcherCatcherPairs){
+    Object.entries(D.pitcherCatcherPairs).forEach(([catcher,pitchers])=>{
+      pitchers.forEach(p=>{
+        if(!pitcherToCatchers[p.pitcher])pitcherToCatchers[p.pitcher]=[];
+        pitcherToCatchers[p.pitcher].push({catcher, rate:p.rate, n:p.n, uss:p.uss, uss_pct:p.uss_pct, uss_runs:p.uss_runs});
+      });
+    });
+    Object.values(pitcherToCatchers).forEach(arr=>arr.sort((a,b)=>b.n-a.n));
+  }
+
+  document.getElementById('load').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  const s=D.summary;
+  document.getElementById('tag').textContent=s.season;
+
+  // USS badge
+  if(hasUSS){
+    document.getElementById('tag-uss').classList.remove('hidden');
+    document.getElementById('header-desc').innerHTML='Pitch sequence effects, platoon edge vulnerability, and <strong style="color:var(--purple)">ABS challenge economy</strong> — '+s.qualified_pitchers+' qualified pitchers, '+s.total_shadow_called.toLocaleString()+' shadow zone called decisions.';
+  } else {
+    document.getElementById('header-desc').innerHTML='Pitch sequence effects and platoon edge vulnerability — '+s.qualified_pitchers+' qualified pitchers, '+s.total_shadow_called.toLocaleString()+' shadow zone called decisions.';
+  }
+
+  // Stats bar
+  let statCards=[
+    st('Pitches',s.total_pitches.toLocaleString(),s.qualified_pitchers+' pitchers'),
+    st('Shadow Zone',s.total_shadow.toLocaleString(),s.shadow_pct+'% of all'),
+    st('Called Decisions',s.total_shadow_called.toLocaleString(),'shadow takes'),
+    st('CS Rate',pc(s.overall_cs_rate),'league avg'),
+    st('Seq Signal','+'+s.sequence_signal_pp+'pp','1st pitch vs same-cat'),
+  ];
+  if(hasUSS){
+    statCards.push(st('USS Rate','<span style="color:var(--purple)">'+pc(s.uss_pct)+'</span>','challenge-proof'));
+    statCards.push(st('USS Runs','<span style="color:var(--purple)">'+s.uss_runs_total.toFixed(1)+'</span>','league total'));
+  }
+  document.getElementById('stats').innerHTML=statCards.join('');
+
+  // Tabs
+  document.querySelectorAll('#tb .tab').forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll('#tb .tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.tp').forEach(t=>t.classList.add('hidden'));
+      b.classList.add('active');
+      document.getElementById('tab-'+b.dataset.tab).classList.remove('hidden');
+    };
+  });
+
+  const teams=[...new Set(Object.values(D.pitcherMeta).map(m=>m.team))].sort();
+  ['p-team','t-sel'].forEach(id=>{
+    const el=document.getElementById(id);
+    const f=id==='p-team'?'<option value="ALL">All Teams</option>':'<option value="">Select a team…</option>';
+    el.innerHTML=f+teams.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+  });
+
+  if(D.catcherMeta){
+    const cTeams=[...new Set(Object.values(D.catcherMeta).map(m=>m.team))].sort();
+    document.getElementById('c-team').innerHTML='<option value="ALL">All Teams</option>'+cTeams.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+  }
+
+  document.getElementById('mu').innerHTML=
+    ['LHP_vs_RHB','LHP_vs_LHB','RHP_vs_RHB','RHP_vs_LHB'].map((m,i)=>
+      '<button class="mu-btn'+(i===0?' on':'')+'" onclick="setMU(\''+m+'\',this)">'+m.replace(/_/g,' ')+'</button>'
+    ).join('');
+
+  if(D.teamMatchupEdges){
+    const plTeams=Object.keys(D.teamMatchupEdges).sort();
+    document.getElementById('pl-team').innerHTML='<option value="LEAGUE">League Average</option>'+plTeams.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+  }
+
+  buildOV(); setMU('LHP_vs_RHB',document.querySelector('.mu-btn')); buildCmp(); filt(); filtC();
+}
+
+/* ── helpers ── */
+function st(l,v,s){return'<div class="stat"><div class="label">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+s+'</div></div>';}
+function pc(v){return(v*100).toFixed(1)+'%';}
+function ussCol(v){return v>0.45?'var(--green)':v<0.25?'var(--red)':'var(--purple)';}
+function ussRunCol(v){return v>3?'var(--green)':v<1?'var(--red)':'var(--purple)';}
+
+/* ── OVERVIEW ── */
+function buildOV(){
+  const s=D.summary;
+  document.getElementById('ov-bars').innerHTML='<div class="bars">'+
+    [{l:'First Pitch',r:s.first_pitch_cs_rate,c:'var(--accent)'},{l:'Diff Category',r:s.diff_cat_cs_rate,c:'var(--blue)'},{l:'Same Category',r:s.same_cat_cs_rate,c:'var(--text3)'}]
+    .map(c=>br(c.l,c.r,c.c)).join('')+'</div>';
+
+  document.getElementById('ov-note').innerHTML='<strong>First pitches get more strikes.</strong> Umpires call shadow zone first pitches as strikes '+pc(s.first_pitch_cs_rate)+' — '+s.sequence_signal_pp+'pp higher than same-category sequences.';
+
+  const agg={};
+  for(const nm in D.pitcherSequences)D.pitcherSequences[nm].forEach(x=>{
+    if(!agg[x.seq])agg[x.seq]={cs:0,n:0};
+    agg[x.seq].cs+=Math.round(x.rate*x.n);agg[x.seq].n+=x.n;
+  });
+  const rows=Object.entries(agg).map(([seq,d])=>({seq,rate:d.cs/d.n,n:d.n})).sort((a,b)=>b.rate-a.rate);
+  const seqTotal=rows.reduce((a,r)=>({cs:a.cs+Math.round(r.rate*r.n),n:a.n+r.n}),{cs:0,n:0});
+  const avg=D.summary.non_first_cs_rate||(seqTotal.n>0?seqTotal.cs/seqTotal.n:D.summary.overall_cs_rate);
+
+  document.getElementById('ov-tbl').innerHTML='<table><thead><tr><th>Sequence</th><th>CS Rate</th><th>n</th><th>vs Avg</th></tr></thead><tbody>'+
+    rows.map(r=>{
+      const df=((r.rate-avg)*100).toFixed(1);
+      const c=r.rate>avg+0.015?'up':r.rate<avg-0.015?'dn':'';
+      const dc=parseFloat(df)>0?'up':parseFloat(df)<0?'dn':'';
+      return'<tr><td>'+r.seq+'</td><td class="'+c+'">'+pc(r.rate)+'</td><td>'+r.n.toLocaleString()+'</td><td class="'+dc+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td></tr>';
+    }).join('')+'</tbody></table>';
+
+  // USS overview note
+  if(hasUSS){
+    document.getElementById('ov-uss').classList.remove('hidden');
+    const pct=pc(s.uss_pct);
+    document.getElementById('ov-uss-note').innerHTML=
+      '<strong>'+pct+' of stolen strikes are uncontested under ABS.</strong> '+
+      'Of '+s.stolen_strikes_total.toLocaleString()+' shadow zone stolen strikes, '+
+      s.uss_total.toLocaleString()+' fall below the challenge break-even threshold ('+s.challenge_value.toFixed(2)+' runs/challenge). '+
+      'These pitches generate '+s.uss_runs_total.toFixed(1)+' runs of durable framing value that will never be overturned. '+
+      'The remaining '+s.contested_total.toLocaleString()+' stolen strikes are contestable — opponents should challenge them under optimal play.';
+  }
+}
+
+/* ── PLATOON ── */
+function setMU(mu,btn){
+  curMU=mu;
+  document.querySelectorAll('.mu-btn').forEach(b=>b.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  const team=curPLTeam||'LEAGUE',isTeam=team!=='LEAGUE';
+  const ld=D.leagueMatchupEdges[mu]||{};
+  const d=isTeam&&D.teamMatchupEdges&&D.teamMatchupEdges[team]?D.teamMatchupEdges[team][mu]||{}:ld;
+  const es=['inside','outside','top','bottom'];
+  const ids={inside:'ez-in',outside:'ez-out',top:'ez-top',bottom:'ez-bot'};
+  es.forEach(e=>{
+    const el=document.getElementById(ids[e]);const v=d[e];const lv=ld[e];
+    if(!v){el.innerHTML='<span style="color:var(--text3);font-size:10px">—</span>';el.style.background='';el.style.border='';return;}
+    const p=(v.rate*100).toFixed(1);
+    const col=v.rate>0.48?'var(--red)':v.rate>0.40?'var(--orange)':'var(--green)';
+    const bg=v.rate>0.48?'var(--red-bg)':v.rate>0.40?'var(--orange-bg)':'var(--green-bg)';
+    el.style.background=bg;el.style.border='1px solid '+col;
+    let html='<span class="r" style="color:'+col+'">'+p+'%</span>';
+    if(isTeam&&lv){const diff=((v.rate-lv.rate)*100).toFixed(1);const dc=parseFloat(diff)>0?'color:var(--green)':parseFloat(diff)<0?'color:var(--red)':'color:var(--text3)';html+='<span class="n" style="'+dc+';font-weight:600">'+(parseFloat(diff)>0?'+':'')+diff+'pp</span>';}
+    else{html+='<span class="n">n='+v.n.toLocaleString()+'</span>';}
+    el.innerHTML=html;
+  });
+  const sorted=es.filter(e=>d[e]).sort((a,b)=>d[b].rate-d[a].rate);
+  document.getElementById('pl-bars').innerHTML='<div class="bars">'+sorted.map(e=>{
+    const v=d[e];const col=v.rate>0.48?'var(--red)':v.rate>0.40?'var(--orange)':'var(--green)';
+    let label=e.charAt(0).toUpperCase()+e.slice(1)+' Edge';
+    if(isTeam&&ld[e]){const diff=((v.rate-ld[e].rate)*100).toFixed(1);label+=' ('+(parseFloat(diff)>0?'+':'')+diff+'pp vs lg)';}
+    return br(label,v.rate,col,v.n);
+  }).join('')+'</div>';
+  const best=sorted[0],worst=sorted[sorted.length-1];
+  const spread=((d[best].rate-d[worst].rate)*100).toFixed(1);
+  let notePrefix=mu.replace(/_/g,' ');if(isTeam)notePrefix=team+' — '+notePrefix;
+  document.getElementById('pl-note').innerHTML='<strong>'+notePrefix+':</strong> '+best+' edge highest at '+pc(d[best].rate)+'. '+worst+' edge lowest at '+pc(d[worst].rate)+'. Spread: '+spread+'pp.';
+}
+var curPLTeam='LEAGUE';
+function setPLTeam(team){curPLTeam=team;document.getElementById('pl-team-label').textContent=team==='LEAGUE'?'':'Showing team edge rates vs league baseline';setMU(curMU,document.querySelector('.mu-btn.on'));buildCmp();}
+
+function buildCmp(){
+  const mus=['LHP_vs_RHB','LHP_vs_LHB','RHP_vs_RHB','RHP_vs_LHB'],es=['inside','outside','top','bottom'];
+  const team=curPLTeam||'LEAGUE',isTeam=team!=='LEAGUE';
+  const le=D.leagueMatchupEdges,te=isTeam&&D.teamMatchupEdges?D.teamMatchupEdges[team]:null;
+  let h='<table><thead><tr><th>Matchup</th><th>Inside</th><th>Outside</th><th>Top</th><th>Bottom</th><th>Highest</th></tr></thead><tbody>';
+  mus.forEach(m=>{
+    const d=isTeam&&te?te[m]:le[m];if(!d)return;
+    let mx='',mxR=0;es.forEach(e=>{if(d[e]&&d[e].rate>mxR){mxR=d[e].rate;mx=e;}});
+    h+='<tr><td>'+m.replace(/_/g,' ')+'</td>';
+    es.forEach(e=>{
+      const v=d[e];if(!v){h+='<td>—</td>';return;}
+      const c=e===mx?'up':v.rate<0.35?'dn':'';
+      let cell=pc(v.rate);
+      if(isTeam&&le[m]&&le[m][e]){const diff=((v.rate-le[m][e].rate)*100).toFixed(1);const dc=parseFloat(diff)>0?'up':parseFloat(diff)<0?'dn':'';cell+=' <span class="'+dc+'" style="font-size:10px">('+(parseFloat(diff)>0?'+':'')+diff+')</span>';}
+      h+='<td class="'+c+'">'+cell+'</td>';
+    });
+    h+='<td style="color:var(--accent);font-weight:600">'+mx.charAt(0).toUpperCase()+mx.slice(1)+' ('+pc(mxR)+')</td></tr>';
+  });
+  document.getElementById('pl-cmp').innerHTML=h+'</tbody></table>';
+}
+
+/* ── PITCHERS ── */
+function filt(){
+  const team=document.getElementById('p-team').value;
+  const q=document.getElementById('p-srch').value.toLowerCase().trim();
+  let ps=Object.keys(D.pitcherMeta);
+  if(team!=='ALL')ps=ps.filter(n=>D.pitcherMeta[n].team===team);
+  if(q)ps=ps.filter(n=>n.toLowerCase().includes(q));
+  // Sort by USS runs if available, else CS rate
+  if(hasUSS) ps.sort((a,b)=>(D.pitcherMeta[b].uss_runs||0)-(D.pitcherMeta[a].uss_runs||0));
+  else ps.sort((a,b)=>(D.pitcherMeta[b].cs_rate||0)-(D.pitcherMeta[a].cs_rate||0));
+  const el=document.getElementById('p-chips');
+  if(!ps.length){el.innerHTML='<span style="color:var(--text3);font-size:12px">No pitchers match.</span>';return;}
+  el.innerHTML=ps.map((p,i)=>{
+    const on=(curP===p||(!curP&&i===0))?' on':'';
+    return'<button class="chip'+on+'" onclick="selP(\''+esc(p)+'\',this)">'+shortN(p)+'</button>';
+  }).join('');
+  if(!curP||!ps.includes(curP))selP(ps[0],el.querySelector('.chip'));
+}
+
+function selP(name,btn){
+  curP=name;
+  document.querySelectorAll('#p-chips .chip').forEach(c=>c.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  const m=D.pitcherMeta[name],seqs=D.pitcherSequences[name]||[],plat=D.pitcherPlatoon[name]||[],avg=D.summary.overall_cs_rate;
+  const diff=m.cs_rate-avg;
+  const col=diff>0.04?'var(--green)':diff<-0.04?'var(--red)':'var(--orange)';
+  const bg=diff>0.04?'var(--green-bg)':diff<-0.04?'var(--red-bg)':'var(--orange-bg)';
+
+  // Card with USS badges
+  let cardHTML='<div class="p-card"><div><div class="name">'+name+'</div><div class="meta"><span class="t">'+m.team+'</span><span class="t">'+m.hand+'HP</span><span>'+m.shadow_decisions+' decisions</span></div></div>';
+  cardHTML+='<div class="badges">';
+  cardHTML+='<div class="badge" style="color:'+col+';background:'+bg+'"><div class="badge-val">'+pc(m.cs_rate)+'</div><div class="badge-lbl">CS Rate</div></div>';
+  if(hasUSS&&m.uss_runs!=null){
+    const uc=ussRunCol(m.uss_runs);
+    cardHTML+='<div class="badge" style="color:'+uc+';background:var(--purple-bg)"><div class="badge-val">'+m.uss_runs.toFixed(1)+'</div><div class="badge-lbl">USS Runs</div></div>';
+    cardHTML+='<div class="badge" style="color:var(--purple);background:var(--purple-bg)"><div class="badge-val">'+pc(m.uss_pct)+'</div><div class="badge-lbl">USS%</div></div>';
+  }
+  cardHTML+='</div></div>';
+  document.getElementById('p-card').innerHTML=cardHTML;
+
+  // Sequence bars
+  if(seqs.length){
+    document.getElementById('p-seq').innerHTML='<div class="bars">'+seqs.map(s=>{
+      const c=s.rate>avg+0.05?'var(--green)':s.rate<avg-0.05?'var(--red)':'var(--text3)';
+      return br(s.seq,s.rate,c,s.n);
+    }).join('')+'</div>';
+  }else document.getElementById('p-seq').innerHTML='<span style="color:var(--text3);font-size:12px">Insufficient data.</span>';
+
+  // Platoon table
+  if(plat.length){
+    document.getElementById('p-plat').innerHTML='<table><thead><tr><th>Matchup</th><th>Edge</th><th>CS Rate</th><th>n</th></tr></thead><tbody>'+
+      plat.map(p=>{const c=p.rate>avg+0.06?'up':p.rate<avg-0.06?'dn':'';return'<tr><td>'+p.matchup+'</td><td>'+p.edge+'</td><td class="'+c+'">'+pc(p.rate)+'</td><td>'+p.n+'</td></tr>';}).join('')+'</tbody></table>';
+  }else document.getElementById('p-plat').innerHTML='<span style="color:var(--text3);font-size:12px">Insufficient data.</span>';
+
+  // Battery splits with USS
+  const catchers=pitcherToCatchers[name];
+  if(catchers&&catchers.length){
+    const sorted=[...catchers].sort((a,b)=>b.rate-a.rate);
+    const showUSS=hasUSS&&sorted.some(c=>c.uss_runs!=null);
+    let thead='<th>Catcher</th><th>CS Rate</th><th>n</th><th>vs Pitcher Avg</th>';
+    if(showUSS) thead+='<th>USS Runs</th><th>USS%</th>';
+    document.getElementById('p-catchers').innerHTML=
+      '<table><thead><tr>'+thead+'</tr></thead><tbody>'+
+      sorted.map(c=>{
+        const df=((c.rate-m.cs_rate)*100).toFixed(1);
+        const cl=c.rate>m.cs_rate+0.03?'up':c.rate<m.cs_rate-0.03?'dn':'';
+        const hasMeta=D.catcherMeta&&D.catcherMeta[c.catcher];
+        const nameCell=hasMeta?'<span class="link-name" onclick="jumpC(\''+esc(c.catcher)+'\')">'+c.catcher+'</span>':c.catcher;
+        let row='<tr><td>'+nameCell+'</td><td class="'+cl+'">'+pc(c.rate)+'</td><td>'+c.n+'</td><td class="'+cl+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td>';
+        if(showUSS){
+          row+='<td class="uss-val">'+(c.uss_runs!=null?c.uss_runs.toFixed(1):'—')+'</td>';
+          row+='<td class="uss-val">'+(c.uss_pct!=null?pc(c.uss_pct):'—')+'</td>';
+        }
+        return row+'</tr>';
+      }).join('')+'</tbody></table>';
+  }else{
+    document.getElementById('p-catchers').innerHTML='<span style="color:var(--text3);font-size:12px">No battery split data.</span>';
+  }
+
+  document.getElementById('p-note').innerHTML=genNote(name,m,seqs,plat,avg);
+}
+
+function genNote(name,m,seqs,plat,avg){
+  const parts=[],d=m.cs_rate-avg,dp=(d*100).toFixed(1);
+  if(d>0.06)parts.push('<strong>Elite shadow zone pitcher</strong> — '+pc(m.cs_rate)+' CS rate, +'+dp+'pp above league average.');
+  else if(d>0.02)parts.push('<strong>Above-average shadow zone pitcher</strong> — '+pc(m.cs_rate)+' (+'+dp+'pp).');
+  else if(d>-0.02)parts.push('<strong>League-average shadow zone profile</strong> — '+pc(m.cs_rate)+'.');
+  else parts.push('<strong>Below-average shadow zone pitcher</strong> — '+pc(m.cs_rate)+' ('+dp+'pp vs avg).');
+
+  // USS note
+  if(hasUSS&&m.uss_runs!=null&&m.uss_runs>0){
+    parts.push('<strong style="color:var(--purple)">ABS durability:</strong> '+m.uss_runs.toFixed(1)+' USS runs from '+m.uss+' challenge-proof stolen strikes ('+pc(m.uss_pct)+' USS rate). '+m.contested+' stolen strikes are contestable.');
+  }
+
+  if(seqs.length){
+    const best=seqs[0],worst=seqs[seqs.length-1];
+    parts.push('<strong>Best sequence:</strong> '+best.seq+' at '+pc(best.rate)+' (n='+best.n+').');
+    const sp=((best.rate-worst.rate)*100).toFixed(1);
+    if(parseFloat(sp)>8)parts.push('Sequence spread: '+sp+'pp — '+worst.seq+' drops to '+pc(worst.rate)+'.');
+  }
+  if(plat.length){
+    const s=[...plat].sort((a,b)=>b.rate-a.rate),hi=s[0],lo=s[s.length-1];
+    parts.push('<strong>Strongest edge:</strong> '+hi.edge+' vs '+hi.matchup.split(' vs ')[1]+' at '+pc(hi.rate)+' (n='+hi.n+').');
+    parts.push('<strong>Challenge vulnerability:</strong> '+lo.edge+' in '+lo.matchup+' at '+pc(lo.rate)+(lo.rate<0.30?' — batters should challenge aggressively.':'.'));
+  }
+  return parts.join(' ');
+}
+
+/* ── TEAM VIEW ── */
+function teamView(){
+  const team=document.getElementById('t-sel').value,el=document.getElementById('t-body');
+  if(!team){el.innerHTML='';return;}
+  const avg=D.summary.overall_cs_rate;
+  const ps=Object.entries(D.pitcherMeta).filter(([_,m])=>m.team===team).sort((a,b)=>b[1].cs_rate-a[1].cs_rate);
+  const te=D.teamMatchupEdges[team];
+  const tu=D.teamUSS?D.teamUSS[team]:null;
+
+  let tDec=0,tCS=0,tPitches=0,tShadow=0;
+  ps.forEach(([_,m])=>{tDec+=m.shadow_decisions;tCS+=Math.round(m.cs_rate*m.shadow_decisions);tPitches+=m.total_pitches;tShadow+=m.shadow_pitches;});
+  const tRate=tDec>0?tCS/tDec:0;
+  const tDiff=((tRate-avg)*100).toFixed(1);
+  const tCol=tRate>avg+0.02?'var(--green)':tRate<avg-0.02?'var(--red)':'var(--text)';
+  const best=ps[0],worst=ps[ps.length-1];
+
+  let h='<div class="team-name">'+team+'</div><div class="team-sub">'+ps.length+' qualified pitchers</div>';
+  h+='<div class="stats" style="margin:0 0 16px">';
+  h+=st('Team CS Rate','<span style="color:'+tCol+'">'+pc(tRate)+'</span>','<span style="color:'+tCol+'">'+(parseFloat(tDiff)>0?'+':'')+tDiff+'pp vs league</span>');
+  h+=st('Decisions',tDec.toLocaleString(),tShadow.toLocaleString()+' shadow pitches');
+  if(tu){
+    h+=st('USS Runs','<span style="color:var(--purple)">'+tu.uss_runs.toFixed(1)+'</span>','team total');
+    h+=st('USS Rate','<span style="color:var(--purple)">'+pc(tu.uss_pct)+'</span>',tu.uss+' challenge-proof');
+  } else {
+    h+=st('Staff Best',best?pc(best[1].cs_rate):'—',best?best[0]:'');
+    h+=st('Staff Worst',worst?pc(worst[1].cs_rate):'—',worst?worst[0]:'');
+  }
+  h+='</div>';
+
+  // Staff table with USS columns
+  let thead='<th>Pitcher</th><th>Hand</th><th>Decisions</th><th>CS Rate</th><th>vs League</th>';
+  if(hasUSS) thead+='<th>USS Runs</th><th>USS%</th>';
+  h+='<div class="panel" style="margin-bottom:16px"><div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Staff Rankings</div>'+
+    '<table><thead><tr>'+thead+'</tr></thead><tbody>'+
+    ps.map(([n,m])=>{
+      const dfL=((m.cs_rate-avg)*100).toFixed(1);
+      const cL=m.cs_rate>avg+0.02?'up':m.cs_rate<avg-0.02?'dn':'';
+      let row='<tr class="clickable" onclick="jumpP(\''+esc(n)+'\')"><td>'+n+'</td><td>'+m.hand+'HP</td><td>'+m.shadow_decisions+'</td><td class="'+cL+'">'+pc(m.cs_rate)+'</td><td class="'+cL+'">'+(parseFloat(dfL)>0?'+':'')+dfL+'pp</td>';
+      if(hasUSS){
+        row+='<td class="uss-val">'+(m.uss_runs!=null?m.uss_runs.toFixed(1):'—')+'</td>';
+        row+='<td class="uss-val">'+(m.uss_pct!=null?pc(m.uss_pct):'—')+'</td>';
+      }
+      return row+'</tr>';
+    }).join('')+'</tbody></table></div>';
+
+  if(te){
+    const le=D.leagueMatchupEdges;
+    h+='<div class="panel"><div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Team Matchup Edges</div>'+
+      '<table><thead><tr><th>Matchup</th><th>Inside</th><th>Outside</th><th>Top</th><th>Bottom</th></tr></thead><tbody>';
+    ['LHP_vs_LHB','LHP_vs_RHB','RHP_vs_RHB','RHP_vs_LHB'].forEach(mu=>{
+      const md=te[mu];if(!md)return;const ld=le[mu]||{};
+      h+='<tr><td>'+mu.replace(/_/g,' ')+'</td>';
+      ['inside','outside','top','bottom'].forEach(e=>{
+        if(md[e]){const lRate=ld[e]?ld[e].rate:avg;const diff=((md[e].rate-lRate)*100).toFixed(1);const c=md[e].rate>lRate+0.03?'up':md[e].rate<lRate-0.03?'dn':'';h+='<td class="'+c+'">'+pc(md[e].rate)+' <span style="color:var(--text3);font-size:10px">'+(parseFloat(diff)>0?'+':'')+diff+'pp</span></td>';}
+        else h+='<td>—</td>';
+      });
+      h+='</tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  el.innerHTML=h;
+}
+
+/* ── CATCHERS ── */
+function filtC(){
+  if(!D.catcherMeta){document.getElementById('c-rank').innerHTML='<div class="note" style="border-left-color:var(--text3)">Catcher data not available.</div>';return;}
+  const team=document.getElementById('c-team').value;
+  const q=document.getElementById('c-srch').value.toLowerCase().trim();
+  const avg=D.summary.overall_cs_rate;
+  let cs=Object.entries(D.catcherMeta);
+  if(team!=='ALL')cs=cs.filter(([_,m])=>m.team===team);
+  if(q)cs=cs.filter(([n])=>n.toLowerCase().includes(q));
+  // Sort by USS runs if available
+  if(hasUSS) cs.sort((a,b)=>(b[1].uss_runs||0)-(a[1].uss_runs||0));
+  else cs.sort((a,b)=>b[1].cs_rate-a[1].cs_rate);
+
+  if(!cs.length){document.getElementById('c-rank').innerHTML='<span style="color:var(--text3);font-size:12px">No catchers match.</span>';return;}
+
+  let thead='<th>Catcher</th><th>Team</th><th>Decisions</th><th>CS Rate</th><th>vs Avg</th>';
+  if(hasUSS) thead+='<th>USS Runs</th><th>USS%</th>';
+
+  document.getElementById('c-rank').innerHTML=
+    '<div class="panel" style="margin-bottom:16px"><div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Shadow Zone Rankings'+(hasUSS?' <span style="color:var(--purple);font-size:9px;margin-left:8px">SORTED BY USS RUNS</span>':'')+'</div>'+
+    '<table><thead><tr>'+thead+'</tr></thead><tbody>'+
+    cs.map(([n,m])=>{
+      const df=((m.cs_rate-avg)*100).toFixed(1);
+      const c=m.cs_rate>avg+0.02?'up':m.cs_rate<avg-0.02?'dn':'';
+      let row='<tr class="clickable" onclick="selC(\''+esc(n)+'\')"><td>'+n+'</td><td>'+m.team+'</td><td>'+m.shadow_decisions+'</td><td class="'+c+'">'+pc(m.cs_rate)+'</td><td class="'+c+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td>';
+      if(hasUSS){
+        row+='<td class="uss-val">'+(m.uss_runs!=null?m.uss_runs.toFixed(1):'—')+'</td>';
+        row+='<td class="uss-val">'+(m.uss_pct!=null?pc(m.uss_pct):'—')+'</td>';
+      }
+      return row+'</tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+function selC(name){
+  curC=name;
+  const m=D.catcherMeta[name],avg=D.summary.overall_cs_rate;
+  const diff=m.cs_rate-avg;
+  const col=diff>0.04?'var(--green)':diff<-0.04?'var(--red)':'var(--orange)';
+  const bg=diff>0.04?'var(--green-bg)':diff<-0.04?'var(--red-bg)':'var(--orange-bg)';
+
+  document.getElementById('c-detail').classList.remove('hidden');
+
+  // Card with USS badges
+  let cardHTML='<div class="p-card"><div><div class="name">'+name+'</div><div class="meta"><span class="t">'+m.team+'</span><span>'+m.shadow_decisions+' decisions</span></div></div>';
+  cardHTML+='<div class="badges">';
+  cardHTML+='<div class="badge" style="color:'+col+';background:'+bg+'"><div class="badge-val">'+pc(m.cs_rate)+'</div><div class="badge-lbl">CS Rate</div></div>';
+  if(hasUSS&&m.uss_runs!=null){
+    const uc=ussRunCol(m.uss_runs);
+    cardHTML+='<div class="badge" style="color:'+uc+';background:var(--purple-bg)"><div class="badge-val">'+m.uss_runs.toFixed(1)+'</div><div class="badge-lbl">USS Runs</div></div>';
+    cardHTML+='<div class="badge" style="color:var(--purple);background:var(--purple-bg)"><div class="badge-val">'+pc(m.uss_pct)+'</div><div class="badge-lbl">USS%</div></div>';
+  }
+  cardHTML+='</div></div>';
+  document.getElementById('c-card').innerHTML=cardHTML;
+
+  // Edge profile with USS
+  const edges=D.catcherPlatoon?D.catcherPlatoon[name]:null;
+  if(edges&&edges.length){
+    const sorted=[...edges].sort((a,b)=>b.rate-a.rate);
+    const showEdgeUSS=hasUSS&&sorted.some(e=>e.uss_runs!=null);
+    if(showEdgeUSS){
+      document.getElementById('c-edges').innerHTML=
+        '<table><thead><tr><th>Edge</th><th>CS Rate</th><th>n</th><th>USS Runs</th><th>USS%</th></tr></thead><tbody>'+
+        sorted.map(e=>{
+          const c=e.rate>avg+0.05?'up':e.rate<avg-0.05?'dn':'';
+          return'<tr><td>'+e.edge+'</td><td class="'+c+'">'+pc(e.rate)+'</td><td>'+e.n+'</td><td class="uss-val">'+(e.uss_runs!=null?e.uss_runs.toFixed(1):'—')+'</td><td class="uss-val">'+(e.uss_pct!=null?pc(e.uss_pct):'—')+'</td></tr>';
+        }).join('')+'</tbody></table>';
+    } else {
+      document.getElementById('c-edges').innerHTML='<div class="bars">'+
+        sorted.map(e=>{
+          const c=e.rate>avg+0.05?'var(--green)':e.rate<avg-0.05?'var(--red)':'var(--text3)';
+          return br(e.edge+' Edge',e.rate,c,e.n);
+        }).join('')+'</div>';
+    }
+  }else{
+    document.getElementById('c-edges').innerHTML='<span style="color:var(--text3);font-size:12px">Insufficient edge data.</span>';
+  }
+
+  // Battery pairs with USS
+  const pairs=D.pitcherCatcherPairs?D.pitcherCatcherPairs[name]:null;
+  if(pairs&&pairs.length){
+    const sorted=[...pairs].sort((a,b)=>b.rate-a.rate);
+    const showPairUSS=hasUSS&&sorted.some(p=>p.uss_runs!=null);
+    let thead='<th>Pitcher</th><th>CS Rate</th><th>n</th><th>vs Catcher Avg</th>';
+    if(showPairUSS) thead+='<th>USS Runs</th><th>USS%</th>';
+    document.getElementById('c-pairs').innerHTML=
+      '<table><thead><tr>'+thead+'</tr></thead><tbody>'+
+      sorted.map(p=>{
+        const df=((p.rate-m.cs_rate)*100).toFixed(1);
+        const c=p.rate>m.cs_rate+0.03?'up':p.rate<m.cs_rate-0.03?'dn':'';
+        const hasMeta=D.pitcherMeta&&D.pitcherMeta[p.pitcher];
+        const nameCell=hasMeta?'<span class="link-name" onclick="jumpP(\''+esc(p.pitcher)+'\')">'+p.pitcher+'</span>':p.pitcher;
+        let row='<tr><td>'+nameCell+'</td><td class="'+c+'">'+pc(p.rate)+'</td><td>'+p.n+'</td><td class="'+c+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td>';
+        if(showPairUSS){
+          row+='<td class="uss-val">'+(p.uss_runs!=null?p.uss_runs.toFixed(1):'—')+'</td>';
+          row+='<td class="uss-val">'+(p.uss_pct!=null?pc(p.uss_pct):'—')+'</td>';
+        }
+        return row+'</tr>';
+      }).join('')+'</tbody></table>';
+  }else{
+    document.getElementById('c-pairs').innerHTML='<span style="color:var(--text3);font-size:12px">Insufficient battery data.</span>';
+  }
+
+  // Savant framing
+  const framing=D.catcherFraming?D.catcherFraming[name]:null;
+  if(framing){
+    const zoneOrder=['top_left','top_mid','top_right','mid_left','mid_right','bot_left','bot_mid','bot_right'];
+    const zoneLabels={top_left:'Top L',top_mid:'Top',top_right:'Top R',mid_left:'Left',mid_right:'Right',bot_left:'Bot L',bot_mid:'Bottom',bot_right:'Bot R'};
+    const rvCol=framing.rv_tot<=-5?'var(--green)':framing.rv_tot>=5?'var(--red)':'var(--text)';
+    let fh='<div class="framing-summary">';
+    fh+='<div style="text-align:center"><div class="fs-lbl">Total Run Value</div><div class="fs-val" style="color:'+rvCol+'">'+framing.rv_tot.toFixed(1)+'</div></div>';
+    fh+='<div style="text-align:center"><div class="fs-lbl">Shadow CS%</div><div class="fs-val">'+pc(framing.pct_tot)+'</div></div>';
+    fh+='<div style="text-align:center"><div class="fs-lbl">Pitches</div><div class="fs-val" style="font-size:20px">'+framing.pitches.toLocaleString()+'</div></div>';
+    if(hasUSS&&m.uss_runs!=null){
+      fh+='<div style="text-align:center"><div class="fs-lbl" style="color:var(--purple)">USS Runs</div><div class="fs-val" style="color:var(--purple)">'+m.uss_runs.toFixed(1)+'</div></div>';
+    }
+    fh+='</div>';
+    fh+='<div class="zone-grid">';
+    zoneOrder.forEach((z,i)=>{
+      if(i===4)fh+='<div class="zone-cell" style="border:1px dashed var(--border);display:flex;align-items:center;justify-content:center"><span style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px">ZONE</span></div>';
+      const zd=framing.zones[z];
+      const rc=zd.rv<=-1?'var(--green)':zd.rv>=1?'var(--red)':'var(--text2)';
+      const zbg=zd.rv<=-1?'var(--green-bg)':zd.rv>=1?'var(--red-bg)':'var(--bg2)';
+      fh+='<div class="zone-cell" style="background:'+zbg+'"><div class="zn">'+zoneLabels[z]+'</div><div class="zv" style="color:'+rc+'">'+zd.rv.toFixed(0)+'</div><div class="zp">'+pc(zd.pct)+'</div></div>';
+    });
+    fh+='</div>';
+    document.getElementById('c-framing').innerHTML=fh;
+  }else{
+    document.getElementById('c-framing').innerHTML='<span style="color:var(--text3);font-size:12px">No Savant framing data.</span>';
+  }
+
+  document.getElementById('c-note').innerHTML=genCNote(name,m,edges,pairs,avg);
+  document.getElementById('c-detail').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function genCNote(name,m,edges,pairs,avg){
+  const parts=[],d=m.cs_rate-avg,dp=(d*100).toFixed(1);
+  if(d>0.06)parts.push('<strong>Elite framer</strong> — '+pc(m.cs_rate)+' shadow zone CS rate, +'+dp+'pp above league average.');
+  else if(d>0.02)parts.push('<strong>Above-average framer</strong> — '+pc(m.cs_rate)+' (+'+dp+'pp).');
+  else if(d>-0.02)parts.push('<strong>League-average framing</strong> — '+pc(m.cs_rate)+'.');
+  else parts.push('<strong>Below-average framer</strong> — '+pc(m.cs_rate)+' ('+dp+'pp vs avg).');
+
+  // USS note
+  if(hasUSS&&m.uss_runs!=null&&m.uss_runs>0){
+    parts.push('<strong style="color:var(--purple)">ABS durability:</strong> '+m.uss_runs.toFixed(1)+' USS runs from '+m.uss+' challenge-proof stolen strikes ('+pc(m.uss_pct)+' USS rate). '+m.contested+' stolen strikes are contestable under optimal opponent play.');
+  }
+
+  if(edges&&edges.length){
+    const s=[...edges].sort((a,b)=>b.rate-a.rate),hi=s[0],lo=s[s.length-1];
+    parts.push('<strong>Best edge:</strong> '+hi.edge+' at '+pc(hi.rate)+' (n='+hi.n+').');
+    parts.push('<strong>Weakest edge:</strong> '+lo.edge+' at '+pc(lo.rate)+(lo.rate<0.35?' — batters get the benefit here.':'.'));
+  }
+  if(pairs&&pairs.length){
+    const s=[...pairs].sort((a,b)=>b.rate-a.rate),best=s[0],worst=s[s.length-1];
+    if(s.length>=2){
+      const spread=((best.rate-worst.rate)*100).toFixed(1);
+      parts.push('<strong>Battery spread:</strong> '+spread+'pp — best with '+best.pitcher+' ('+pc(best.rate)+'), worst with '+worst.pitcher+' ('+pc(worst.rate)+').');
+    }
+  }
+  return parts.join(' ');
+}
+
+/* ── NAV ── */
+function jumpP(name){
+  document.querySelectorAll('#tb .tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tp').forEach(t=>t.classList.add('hidden'));
+  document.querySelectorAll('#tb .tab')[2].classList.add('active');
+  document.getElementById('tab-pitchers').classList.remove('hidden');
+  const m=D.pitcherMeta[name];if(m)document.getElementById('p-team').value=m.team;
+  document.getElementById('p-srch').value='';filt();
+  setTimeout(()=>{document.querySelectorAll('#p-chips .chip').forEach(c=>{if(c.textContent===shortN(name))selP(name,c);});},30);
+}
+function jumpC(name){
+  document.querySelectorAll('#tb .tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tp').forEach(t=>t.classList.add('hidden'));
+  document.querySelectorAll('#tb .tab')[4].classList.add('active');
+  document.getElementById('tab-catchers').classList.remove('hidden');
+  const m=D.catcherMeta[name];if(m)document.getElementById('c-team').value=m.team;
+  document.getElementById('c-srch').value='';filtC();
+  setTimeout(()=>selC(name),30);
+}
+
+/* ── UTILS ── */
+function br(label,rate,color,n){
+  const w=Math.max(rate*180,8);
+  return'<div class="bar-row"><div class="bar-lbl">'+label+'</div><div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+color+'"><span class="bar-val">'+pc(rate)+'</span></div></div>'+(n!=null?'<div class="bar-n">n='+n.toLocaleString()+'</div>':'')+'</div>';
+}
+function shortN(n){const p=n.split(', ');return p.length===2?p[1]+' '+p[0]:n;}
+function esc(s){return s.replace(/'/g,"\\'");}
+</script>
+</body>
+</html>
