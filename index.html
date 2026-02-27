@@ -519,6 +519,22 @@ function br(label,rate,color,n){
  return '<div class="bar-row"><div class="bar-lbl">'+label+'</div><div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+color+'"><span class="bar-val">'+pc(rate)+'</span></div></div>'+(n!=null?'<div class="bar-n">n='+n.toLocaleString()+'</div>':'')+'</div>';
 }
 function shortN(n){const p=n.split(', ');return p.length===2?p[1]+' '+p[0]:n;}
+
+function buildZoneGrid(zones){
+ const order=['top_left','top_mid','top_right','mid_left','mid_right','bot_left','bot_mid','bot_right'];
+ const labels={top_left:'Top L',top_mid:'Top',top_right:'Top R',mid_left:'Left',mid_right:'Right',bot_left:'Bot L',bot_mid:'Bottom',bot_right:'Bot R'};
+ let g='<div class="zone-grid">';
+ order.forEach((z,i)=>{
+  if(i===4) g+='<div class="zone-cell" style="border:1px dashed var(--border);display:flex;align-items:center;justify-content:center"><span style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px">ZONE</span></div>';
+  const zd=zones[z];
+  if(!zd){g+='<div class="zone-cell"></div>';return;}
+  const rc=zd.rv<=-1?'var(--green)':zd.rv>=1?'var(--red)':'var(--text2)';
+  const zbg=zd.rv<=-1?'var(--green-bg)':zd.rv>=1?'var(--red-bg)':'var(--bg2)';
+  g+='<div class="zone-cell" style="background:'+zbg+'"><div class="zn">'+labels[z]+'</div><div class="zv" style="color:'+rc+'">'+zd.rv.toFixed(0)+'</div><div class="zp">'+pc(zd.pct)+'</div></div>';
+ });
+ g+='</div>';
+ return g;
+}
 function esc(s){return s.replace(/'/g,"\\'");}
 
 /** Read USS data from pipeline — RE288-weighted, confidence-thresholded */
@@ -1060,23 +1076,11 @@ function buildScoutCards(){
    }
   }
 
-  // Zone breakdown if available
+  // Zone breakdown if available — 3x3 grid
   if(framing&&framing.zones){
    h+='<div class="scout-section">';
    h+='<div class="scout-section-title">Zone Framing Run Values (Savant)</div>';
-   const zoneLabels={top_left:'Top L',top_mid:'Top',top_right:'Top R',mid_left:'Left',mid_right:'Right',bot_left:'Bot L',bot_mid:'Bottom',bot_right:'Bot R'};
-   const zones=Object.entries(framing.zones).sort((a,b)=>a[1].rv-b[1].rv);
-   h+='<div style="display:flex;flex-wrap:wrap;gap:6px;">';
-   zones.forEach(([z,zd])=>{
-    const rc=zd.rv<=-1?'var(--green)':zd.rv>=1?'var(--red)':'var(--text2)';
-    const zbg=zd.rv<=-1?'var(--green-bg)':zd.rv>=1?'var(--red-bg)':'var(--bg2)';
-    h+='<div style="background:'+zbg+';border:1px solid var(--border);border-radius:4px;padding:6px 10px;text-align:center;min-width:70px;">';
-    h+='<div style="font-family:var(--mono);font-size:9px;color:var(--text3);">'+zoneLabels[z]+'</div>';
-    h+='<div style="font-family:var(--mono);font-size:14px;font-weight:700;color:'+rc+';">'+zd.rv.toFixed(0)+'</div>';
-    h+='<div style="font-family:var(--mono);font-size:10px;color:var(--text2);">'+pc(zd.pct)+'</div>';
-    h+='</div>';
-   });
-   h+='</div>';
+   h+=buildZoneGrid(framing.zones);
    h+='</div>';
   }
 
@@ -1284,20 +1288,12 @@ function buildPDReport(){
   h+='</div>';
  }
 
- // ── Zone-level framing effort (Savant) ──
+ // ── Zone-level framing effort (Savant) — 3x3 grid ──
  if(framing&&framing.zones){
   h+='<div class="panel" style="margin-bottom:16px;">';
   h+='<div class="panel-head"><span class="dot" style="background:var(--orange)"></span> Zone Framing Efficiency (Savant)</div>';
   h+='<div class="panel-desc">Savant run value by shadow zone region. Negative = runs saved (good).</div>';
-
-  const zoneLabels={top_left:'Top Left',top_mid:'Top Mid',top_right:'Top Right',mid_left:'Mid Left',mid_right:'Mid Right',bot_left:'Bot Left',bot_mid:'Bot Mid',bot_right:'Bot Right'};
-  const zones=Object.entries(framing.zones).sort((a,b)=>a[1].rv-b[1].rv);
-  h+='<table><thead><tr><th>Zone</th><th>Run Value</th><th>CS%</th></tr></thead><tbody>';
-  zones.forEach(([z,zd])=>{
-   const rvCol=zd.rv<=-1?'up':zd.rv>=1?'dn':'';
-   h+='<tr><td>'+zoneLabels[z]+'</td><td class="'+rvCol+'">'+zd.rv.toFixed(1)+'</td><td>'+pc(zd.pct)+'</td></tr>';
-  });
-  h+='</tbody></table>';
+  h+=buildZoneGrid(framing.zones);
   h+='</div>';
  }
 
