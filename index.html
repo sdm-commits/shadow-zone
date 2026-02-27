@@ -382,6 +382,7 @@
     <select id="fo-sort" onchange="buildFOLeaderboard()">
      <option value="uss_runs">Sort: USS Runs</option>
      <option value="trad_runs">Sort: Traditional Framing Runs</option>
+     <option value="uss_per100">Sort: USS Runs per 100 Steals</option>
      <option value="cs_rate">Sort: Shadow CS Rate</option>
     </select>
     <button class="fo-add-btn" id="fo-compare-btn" onclick="toggleFOCompare()">Compare Selected</button>
@@ -1362,19 +1363,23 @@ function buildFOLeaderboard(){
  let catchers=Object.keys(D.catcherMeta).map(name=>{
   const u=getUSS(name);
   const m=D.catcherMeta[name];
+  const ss=m.stolen_strikes||0;
+  const ur=u.uss_runs||0;
   return {name,team:m.team,cs_rate:m.cs_rate,decisions:m.shadow_decisions,
-   stolen_strikes:m.stolen_strikes||0,uss_count:m.uss||0,contested:m.contested||0,uss_pct:m.uss_pct||0,...u};
+   stolen_strikes:ss,uss_count:m.uss||0,contested:m.contested||0,uss_pct:m.uss_pct||0,
+   uss_per100:ss>0?(ur/ss)*100:0,...u};
  });
 
  // Sort
  if(sortBy==='uss_runs') catchers.sort((a,b)=>b.uss_runs-a.uss_runs);
  else if(sortBy==='trad_runs') catchers.sort((a,b)=>a.trad_runs-b.trad_runs);
+ else if(sortBy==='uss_per100') catchers.sort((a,b)=>b.uss_per100-a.uss_per100);
  else catchers.sort((a,b)=>b.cs_rate-a.cs_rate);
 
  let h='<div class="panel" style="margin-bottom:16px;">';
  h+='<div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Valuation Leaderboard</div>';
  h+='<div class="panel-desc">Two parallel valuations: USS Runs = RE288-weighted run value of uncontested stolen strikes (ABS-era projection). Traditional = Savant framing run value (pre-ABS baseline, negative = good). These overlap — USS is a subset of traditional framing filtered for contestability.</div>';
- h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th><th>CS Rate</th><th>Steals</th><th>USS</th><th>USS Runs</th><th>Trad Runs</th></tr></thead><tbody>';
+ h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th><th>CS Rate</th><th>Steals</th><th>USS</th><th>USS Runs</th><th>USS/100</th><th>Trad Runs</th></tr></thead><tbody>';
 
  catchers.forEach((c,i)=>{
   const isSelected=foSelected.has(c.name);
@@ -1391,6 +1396,7 @@ function buildFOLeaderboard(){
   h+='<td>'+c.stolen_strikes+'</td>';
   h+='<td>'+c.uss_count+'/'+(c.uss_count+c.contested)+'</td>';
   h+='<td class="'+ussCol+'">'+c.uss_runs.toFixed(1)+'</td>';
+  h+='<td>'+c.uss_per100.toFixed(1)+'</td>';
   h+='<td class="'+tradCol+'">'+(c.trad_runs!==0?c.trad_runs.toFixed(1):'—')+'</td>';
   h+='</tr>';
  });
@@ -1459,6 +1465,7 @@ function buildFOCompare(){
   const metrics=[
    {label:'Shadow CS Rate',val:pc(c.cs_rate),raw:c.cs_rate,refRaw:ref.cs_rate,fmt:'pct',good:'higher'},
    {label:'USS Runs',val:c.uss_runs.toFixed(1),raw:c.uss_runs,refRaw:ref.uss_runs,fmt:'num',good:'higher'},
+   {label:'USS Runs / 100',val:c.uss_per100.toFixed(1),raw:c.uss_per100,refRaw:ref.uss_per100,fmt:'num',good:'higher'},
    {label:'USS / Stolen',val:c.uss_count+'/'+(c.uss_count+c.contested),raw:c.uss_count,refRaw:ref.uss_count,fmt:'num',good:'higher'},
    {label:'USS Rate',val:(c.uss_pct*100).toFixed(0)+'%',raw:c.uss_pct,refRaw:ref.uss_pct,fmt:'pct',good:'higher'},
    {label:'Trad Framing Runs',val:c.trad_runs!==0?c.trad_runs.toFixed(1):'—',raw:c.trad_runs,refRaw:ref.trad_runs,fmt:'num',good:'lower'}
