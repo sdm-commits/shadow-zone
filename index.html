@@ -62,6 +62,11 @@
 
  table { width:100%; border-collapse:collapse; }
  th { text-align:left; font-family:var(--mono); font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text3); padding:8px 10px; border-bottom:2px solid var(--border2); }
+ th.sortable { cursor:pointer; user-select:none; position:relative; padding-right:18px; }
+ th.sortable:hover { color:var(--text1); }
+ th.sortable::after { content:'⇅'; position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:10px; opacity:0.4; }
+ th.sortable.asc::after { content:'↑'; opacity:1; color:var(--accent); }
+ th.sortable.desc::after { content:'↓'; opacity:1; color:var(--accent); }
  td { padding:7px 10px; font-family:var(--mono); font-size:12px; border-bottom:1px solid var(--border); }
  tr:last-child td { border-bottom:none; }
  tr:hover td { background:var(--bg2); }
@@ -379,12 +384,6 @@
   <!-- ── FRONT OFFICE ── -->
   <div id="tab-frontoffice" class="tp hidden">
    <div class="controls">
-    <select id="fo-sort" onchange="buildFOLeaderboard()">
-     <option value="uss_runs">Sort: USS Runs</option>
-     <option value="trad_runs">Sort: Traditional Framing Runs</option>
-     <option value="uss_per100">Sort: USS Runs per 100 Steals</option>
-     <option value="cs_rate">Sort: Shadow CS Rate</option>
-    </select>
     <button class="fo-add-btn" id="fo-compare-btn" onclick="toggleFOCompare()">Compare Selected</button>
     <button class="fo-add-btn" onclick="clearFOCompare()" style="color:var(--text2);background:var(--bg2);">Clear</button>
    </div>
@@ -400,6 +399,8 @@ let D,curP,curC,curMU='LHP_vs_RHB';
 var pcpNorm={};
 var pitcherToCatchers={};
 var foSelected=new Set(); // front office comparison selections
+var foSortCol='uss_runs',foSortDir='desc'; // front office leaderboard sort state
+var cSortCol='cs_rate',cSortDir='desc'; // catchers tab sort state
 
 (async()=>{
  try{
@@ -821,6 +822,12 @@ function jumpC(name){
 }
 
 /* ── CATCHERS ── */
+function cSort(col){
+ if(cSortCol===col) cSortDir=cSortDir==='desc'?'asc':'desc';
+ else { cSortCol=col; cSortDir='desc'; }
+ filtC();
+}
+
 function filtC(){
  if(!D.catcherMeta){document.getElementById('c-rank').innerHTML='<div class="note" style="border-left-color:var(--text3)">Catcher data not available.</div>';return;}
  const team=document.getElementById('c-team').value;
@@ -829,17 +836,35 @@ function filtC(){
  let cs=Object.entries(D.catcherMeta);
  if(team!=='ALL')cs=cs.filter(([_,m])=>m.team===team);
  if(q)cs=cs.filter(([n])=>n.toLowerCase().includes(q));
- cs.sort((a,b)=>b[1].cs_rate-a[1].cs_rate);
+
+ // Sortable columns
+ const dir=cSortDir==='desc'?-1:1;
+ const getVal=(m,col)=>{
+  if(col==='cs_rate') return m.cs_rate;
+  if(col==='shadow_decisions') return m.shadow_decisions;
+  if(col==='vs_avg') return m.cs_rate-avg;
+  if(col==='uss_runs') return m.uss_runs||0;
+  if(col==='stolen_strikes') return m.stolen_strikes||0;
+  return 0;
+ };
+ cs.sort((a,b)=>dir*(getVal(a[1],cSortCol)-getVal(b[1],cSortCol)));
 
  if(!cs.length){document.getElementById('c-rank').innerHTML='<span style="color:var(--text3);font-size:12px">No catchers match.</span>';return;}
 
+ function thS(label,col){
+  const cls='sortable'+(cSortCol===col?' '+cSortDir:'');
+  return '<th class="'+cls+'" onclick="cSort(\''+col+'\')">'+label+'</th>';
+ }
+
  document.getElementById('c-rank').innerHTML=
   '<div class="panel" style="margin-bottom:16px"><div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Shadow Zone Rankings</div>'+
-  '<table><thead><tr><th>Catcher</th><th>Team</th><th>Decisions</th><th>CS Rate</th><th>vs Avg</th></tr></thead><tbody>'+
+  '<table><thead><tr><th>Catcher</th><th>Team</th>'+thS('Decisions','shadow_decisions')+thS('CS Rate','cs_rate')+thS('vs Avg','vs_avg')+thS('USS Runs','uss_runs')+thS('Steals','stolen_strikes')+'</tr></thead><tbody>'+
   cs.map(([n,m])=>{
    const df=((m.cs_rate-avg)*100).toFixed(1);
    const c=m.cs_rate>avg+0.02?'up':m.cs_rate<avg-0.02?'dn':'';
-   return '<tr class="clickable" onclick="selC(\''+esc(n)+'\')"><td>'+n+'</td><td>'+m.team+'</td><td>'+m.shadow_decisions+'</td><td class="'+c+'">'+pc(m.cs_rate)+'</td><td class="'+c+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td></tr>';
+   const ur=m.uss_runs||0;
+   const uc=ur>1?'up':ur<-1?'dn':'';
+   return '<tr class="clickable" onclick="selC(\''+esc(n)+'\')"><td>'+n+'</td><td>'+m.team+'</td><td>'+m.shadow_decisions+'</td><td class="'+c+'">'+pc(m.cs_rate)+'</td><td class="'+c+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td><td class="'+uc+'">'+ur.toFixed(1)+'</td><td>'+(m.stolen_strikes||0)+'</td></tr>';
   }).join('')+'</tbody></table></div>';
 }
 
@@ -1354,10 +1379,15 @@ function genPDNote(name,m,edges,pairs,avg){
    ██  FRONT OFFICE — side-by-side comparison & leaderboard
    ═══════════════════════════════════════════════════════════════ */
 
+function foSort(col){
+ if(foSortCol===col) foSortDir=foSortDir==='desc'?'asc':'desc';
+ else { foSortCol=col; foSortDir=(col==='trad_runs'?'asc':'desc'); }
+ buildFOLeaderboard();
+}
+
 function buildFOLeaderboard(){
  if(!D.catcherMeta){document.getElementById('fo-leaderboard').innerHTML='<div class="note" style="border-left-color:var(--text3)">Catcher data not available.</div>';return;}
 
- const sortBy=document.getElementById('fo-sort').value;
  const avg=D.summary.overall_cs_rate;
 
  let catchers=Object.keys(D.catcherMeta).map(name=>{
@@ -1371,15 +1401,18 @@ function buildFOLeaderboard(){
  });
 
  // Sort
- if(sortBy==='uss_runs') catchers.sort((a,b)=>b.uss_runs-a.uss_runs);
- else if(sortBy==='trad_runs') catchers.sort((a,b)=>a.trad_runs-b.trad_runs);
- else if(sortBy==='uss_per100') catchers.sort((a,b)=>b.uss_per100-a.uss_per100);
- else catchers.sort((a,b)=>b.cs_rate-a.cs_rate);
+ const dir=foSortDir==='desc'?-1:1;
+ catchers.sort((a,b)=>dir*(a[foSortCol]-b[foSortCol]));
+
+ function thS(label,col){
+  const cls='sortable'+(foSortCol===col?' '+foSortDir:'');
+  return '<th class="'+cls+'" onclick="foSort(\''+col+'\')">'+label+'</th>';
+ }
 
  let h='<div class="panel" style="margin-bottom:16px;">';
  h+='<div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Valuation Leaderboard</div>';
  h+='<div class="panel-desc">Two parallel valuations: USS Runs = RE288-weighted run value of uncontested stolen strikes (ABS-era projection). Traditional = Savant framing run value (pre-ABS baseline, negative = good). These overlap — USS is a subset of traditional framing filtered for contestability.</div>';
- h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th><th>CS Rate</th><th>Steals</th><th>USS</th><th>USS Runs</th><th>USS/100</th><th>Trad Runs</th></tr></thead><tbody>';
+ h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th>'+thS('CS Rate','cs_rate')+thS('Steals','stolen_strikes')+'<th>USS</th>'+thS('USS Runs','uss_runs')+thS('USS/100','uss_per100')+thS('Trad Runs','trad_runs')+'</tr></thead><tbody>';
 
  catchers.forEach((c,i)=>{
   const isSelected=foSelected.has(c.name);
