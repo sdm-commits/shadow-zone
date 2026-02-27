@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -383,7 +382,6 @@
     <select id="fo-sort" onchange="buildFOLeaderboard()">
      <option value="uss_runs">Sort: USS Runs</option>
      <option value="trad_runs">Sort: Traditional Framing Runs</option>
-     <option value="delta">Sort: USS vs Traditional Delta</option>
      <option value="cs_rate">Sort: Shadow CS Rate</option>
     </select>
     <button class="fo-add-btn" id="fo-compare-btn" onclick="toggleFOCompare()">Compare Selected</button>
@@ -524,13 +522,12 @@ function esc(s){return s.replace(/'/g,"\\'");}
 /** Read USS data from pipeline — RE288-weighted, confidence-thresholded */
 function getUSS(name){
  const m=D.catcherMeta[name];
- if(!m) return {uss_runs:0,trad_runs:0,delta:0,stolen_strikes:0,uss:0,contested:0,uss_pct:0};
+ if(!m) return {uss_runs:0,trad_runs:0,stolen_strikes:0,uss:0,contested:0,uss_pct:0};
  const ussRuns=m.uss_runs||0;
  const tradRuns=D.catcherFraming&&D.catcherFraming[name]?D.catcherFraming[name].rv_tot:0;
  return {
   uss_runs:ussRuns,
   trad_runs:tradRuns,
-  delta:ussRuns-(-1*tradRuns), // Savant rv_tot negative = good; flip for comparison
   stolen_strikes:m.stolen_strikes||0,
   uss:m.uss||0,
   contested:m.contested||0,
@@ -1333,19 +1330,17 @@ function buildFOLeaderboard(){
  // Sort
  if(sortBy==='uss_runs') catchers.sort((a,b)=>b.uss_runs-a.uss_runs);
  else if(sortBy==='trad_runs') catchers.sort((a,b)=>a.trad_runs-b.trad_runs);
- else if(sortBy==='delta') catchers.sort((a,b)=>b.delta-a.delta);
  else catchers.sort((a,b)=>b.cs_rate-a.cs_rate);
 
  let h='<div class="panel" style="margin-bottom:16px;">';
  h+='<div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Valuation Leaderboard</div>';
- h+='<div class="panel-desc">USS Runs = RE288-weighted run value of uncontested stolen strikes (confidence below Tango challenge threshold). Traditional = Savant framing run value (negative = good). Stolen strikes classified per-pitch by game state.</div>';
- h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th><th>CS Rate</th><th>Steals</th><th>USS</th><th>USS Runs</th><th>Trad Runs</th><th>Delta</th></tr></thead><tbody>';
+ h+='<div class="panel-desc">Two parallel valuations: USS Runs = RE288-weighted run value of uncontested stolen strikes (ABS-era projection). Traditional = Savant framing run value (pre-ABS baseline, negative = good). These overlap — USS is a subset of traditional framing filtered for contestability.</div>';
+ h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th><th>CS Rate</th><th>Steals</th><th>USS</th><th>USS Runs</th><th>Trad Runs</th></tr></thead><tbody>';
 
  catchers.forEach((c,i)=>{
   const isSelected=foSelected.has(c.name);
   const ussCol=c.uss_runs>1?'up':c.uss_runs<-1?'dn':'';
   const tradCol=c.trad_runs<=-3?'up':c.trad_runs>=3?'dn':'';
-  const deltaCol=c.delta>1?'up':c.delta<-1?'dn':'';
   const csCol=c.cs_rate>avg+0.02?'up':c.cs_rate<avg-0.02?'dn':'';
 
   h+='<tr class="clickable" style="'+(isSelected?'background:var(--blue-bg);':'')+'">';
@@ -1358,7 +1353,6 @@ function buildFOLeaderboard(){
   h+='<td>'+c.uss_count+'/'+(c.uss_count+c.contested)+'</td>';
   h+='<td class="'+ussCol+'">'+c.uss_runs.toFixed(1)+'</td>';
   h+='<td class="'+tradCol+'">'+(c.trad_runs!==0?c.trad_runs.toFixed(1):'—')+'</td>';
-  h+='<td class="'+deltaCol+'">'+(c.trad_runs!==0?(c.delta>0?'+':'')+c.delta.toFixed(1):'—')+'</td>';
   h+='</tr>';
  });
 
@@ -1411,7 +1405,7 @@ function buildFOCompare(){
 
  let h='<div class="panel" style="margin-top:16px;">';
  h+='<div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Side-by-Side Comparison</div>';
- h+='<div class="panel-desc">Comparing '+catchers.length+' catchers. All deltas shown relative to '+ref.name+'.</div>';
+ h+='<div class="panel-desc">Comparing '+catchers.length+' catchers. Differences shown relative to '+ref.name+'.</div>';
 
  // Comparison cards
  const cols=Math.min(catchers.length,4);
@@ -1428,8 +1422,7 @@ function buildFOCompare(){
    {label:'USS Runs',val:c.uss_runs.toFixed(1),raw:c.uss_runs,refRaw:ref.uss_runs,fmt:'num',good:'higher'},
    {label:'USS / Stolen',val:c.uss_count+'/'+(c.uss_count+c.contested),raw:c.uss_count,refRaw:ref.uss_count,fmt:'num',good:'higher'},
    {label:'USS Rate',val:(c.uss_pct*100).toFixed(0)+'%',raw:c.uss_pct,refRaw:ref.uss_pct,fmt:'pct',good:'higher'},
-   {label:'Trad Framing Runs',val:c.trad_runs!==0?c.trad_runs.toFixed(1):'—',raw:c.trad_runs,refRaw:ref.trad_runs,fmt:'num',good:'lower'},
-   {label:'USS vs Trad Delta',val:c.trad_runs!==0?(c.delta>0?'+':'')+c.delta.toFixed(1):'—',raw:c.delta,refRaw:ref.delta,fmt:'num',good:'higher'}
+   {label:'Trad Framing Runs',val:c.trad_runs!==0?c.trad_runs.toFixed(1):'—',raw:c.trad_runs,refRaw:ref.trad_runs,fmt:'num',good:'lower'}
   ];
 
   metrics.forEach(met=>{
