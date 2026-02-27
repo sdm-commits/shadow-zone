@@ -1014,6 +1014,26 @@ function buildScoutCards(){
    h+='</div>';
   }
 
+  // Count tendency — top counts by USS runs
+  const cCountData=D.catcherCountUSS&&D.catcherCountUSS[name];
+  if(cCountData&&cCountData.length){
+   const top3=cCountData.slice(0,3).filter(c=>c.uss_runs>0);
+   if(top3.length){
+    h+='<div class="scout-section">';
+    h+='<div class="scout-section-title">Highest-Value Counts</div>';
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    top3.forEach(c=>{
+     h+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 12px;text-align:center;min-width:60px;">';
+     h+='<div style="font-family:var(--mono);font-size:16px;font-weight:700;">'+c.count+'</div>';
+     h+='<div style="font-family:var(--mono);font-size:11px;color:var(--green);font-weight:600;">'+c.uss_runs.toFixed(1)+' runs</div>';
+     h+='<div style="font-family:var(--mono);font-size:9px;color:var(--text3);">'+c.uss+'/'+c.stolen_strikes+' USS</div>';
+     h+='</div>';
+    });
+    h+='</div>';
+    h+='</div>';
+   }
+  }
+
   // Zone breakdown if available
   if(framing&&framing.zones){
    h+='<div class="scout-section">';
@@ -1087,13 +1107,15 @@ function genScoutStrategy(name,meta,edges,framing,avg){
  }
 
  if(edges&&edges.length){
+  const byContested=[...edges].sort((a,b)=>(b.contested||0)-(a.contested||0));
   const byUss=[...edges].sort((a,b)=>(b.uss_runs||0)-(a.uss_runs||0));
-  const bestEdge=byUss[0],worstEdge=byUss[byUss.length-1];
-  if((bestEdge.uss_runs||0)>0.5){
-   parts.push('<strong>Challenge zone:</strong> '+bestEdge.edge+' edge ('+(bestEdge.uss_runs||0).toFixed(1)+' USS runs, '+(bestEdge.uss||0)+' uncontested). Challenge early-count calls here — high steal probability.');
+  const challengeEdge=byContested[0];
+  const ussEdge=byUss[0];
+  if((challengeEdge.contested||0)>2){
+   parts.push('<strong>Challenge zone:</strong> '+challengeEdge.edge+' edge ('+(challengeEdge.contested||0)+' contestable steals). These have positive EV to challenge under ABS.');
   }
-  if((worstEdge.uss_runs||0)<0.3){
-   parts.push('<strong>Let it go:</strong> '+worstEdge.edge+' edge ('+(worstEdge.uss_runs||0).toFixed(1)+' USS runs). Low steal value — save your challenge.');
+  if((ussEdge.uss_runs||0)>0.5){
+   parts.push('<strong>Unchallengeable edge:</strong> '+ussEdge.edge+' ('+(ussEdge.uss_runs||0).toFixed(1)+' USS runs, '+(ussEdge.uss||0)+' uncontested). Steals here survive ABS — not worth a challenge.');
   }
  }
 
@@ -1217,6 +1239,23 @@ function buildPDReport(){
   h+='</div>';
 
   h+='</div>'; // /panel
+ }
+
+ // ── Count-level USS breakdown ──
+ const countData=D.catcherCountUSS&&D.catcherCountUSS[name];
+ if(countData&&countData.length){
+  h+='<div class="panel" style="margin-bottom:16px;">';
+  h+='<div class="panel-head"><span class="dot" style="background:var(--accent)"></span> USS by Count</div>';
+  h+='<div class="panel-desc">Sum of RE288 deltas for uncontested stolen strikes at each ball-strike count. High-leverage counts (hitter-friendly) carry larger RE swings per steal.</div>';
+  h+='<table><thead><tr><th>Count</th><th>Steals</th><th>USS</th><th>Contested</th><th>USS%</th><th>USS Runs</th></tr></thead><tbody>';
+  countData.forEach(c=>{
+   const total=c.uss+c.contested;
+   const ussPct=total>0?c.uss/total:0;
+   const rvCol=c.uss_runs>0.5?'up':c.uss_runs<0?'dn':'';
+   h+='<tr><td>'+c.count+'</td><td>'+c.stolen_strikes+'</td><td>'+c.uss+'</td><td>'+c.contested+'</td><td>'+(ussPct*100).toFixed(0)+'%</td><td class="'+rvCol+'">'+c.uss_runs.toFixed(1)+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='</div>';
  }
 
  // ── Zone-level framing effort (Savant) ──
