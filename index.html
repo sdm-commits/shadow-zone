@@ -520,10 +520,11 @@ function br(label,rate,color,n){
 }
 function shortN(n){const p=n.split(', ');return p.length===2?p[1]+' '+p[0]:n;}
 
-function buildZoneGrid(zones){
+function buildZoneGrid(zones,align){
  const order=['top_left','top_mid','top_right','mid_left','mid_right','bot_left','bot_mid','bot_right'];
  const labels={top_left:'Top L',top_mid:'Top',top_right:'Top R',mid_left:'Left',mid_right:'Right',bot_left:'Bot L',bot_mid:'Bottom',bot_right:'Bot R'};
- let g='<div class="zone-grid">';
+ const ml=align==='left'?'margin:0':'';
+ let g='<div class="zone-grid"'+(ml?' style="'+ml+'"':'')+'>';
  order.forEach((z,i)=>{
   if(i===4) g+='<div class="zone-cell" style="border:1px dashed var(--border);display:flex;align-items:center;justify-content:center"><span style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px">ZONE</span></div>';
   const zd=zones[z];
@@ -1080,7 +1081,7 @@ function buildScoutCards(){
   if(framing&&framing.zones){
    h+='<div class="scout-section">';
    h+='<div class="scout-section-title">Zone Framing Run Values (Savant)</div>';
-   h+=buildZoneGrid(framing.zones);
+   h+=buildZoneGrid(framing.zones,'left');
    h+='</div>';
   }
 
