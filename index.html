@@ -889,8 +889,8 @@ function buildZoneGrid(zones,align){
   if(i===4) g+='<div class="zone-cell" style="border:1px dashed var(--border);display:flex;align-items:center;justify-content:center"><span style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px">ZONE</span></div>';
   const zd=zones[z];
   if(!zd){g+='<div class="zone-cell"></div>';return;}
-  const rc=zd.rv<=-1?'var(--green)':zd.rv>=1?'var(--red)':'var(--text2)';
-  const zbg=zd.rv<=-1?'var(--green-bg)':zd.rv>=1?'var(--red-bg)':'var(--bg2)';
+  const rc=zd.rv>=1?'var(--green)':zd.rv<=-1?'var(--red)':'var(--text2)';
+  const zbg=zd.rv>=1?'var(--green-bg)':zd.rv<=-1?'var(--red-bg)':'var(--bg2)';
   g+='<div class="zone-cell" style="background:'+zbg+'"><div class="zn">'+labels[z]+'</div><div class="zv" style="color:'+rc+'">'+zd.rv.toFixed(0)+'</div><div class="zp">'+pc(zd.pct)+'</div></div>';
  });
  g+='</div>';
@@ -1365,7 +1365,7 @@ function selC(name){
  if(framing){
   const zoneOrder=['top_left','top_mid','top_right','mid_left','mid_right','bot_left','bot_mid','bot_right'];
   const zoneLabels={top_left:'Top L',top_mid:'Top',top_right:'Top R',mid_left:'Left',mid_right:'Right',bot_left:'Bot L',bot_mid:'Bottom',bot_right:'Bot R'};
-  const rvCol=framing.rv_tot<=-5?'var(--green)':framing.rv_tot>=5?'var(--red)':'var(--text)';
+  const rvCol=framing.rv_tot>=5?'var(--green)':framing.rv_tot<=-5?'var(--red)':'var(--text)';
 
   let fh='<div class="framing-summary">';
   fh+='<div style="text-align:center"><div class="fs-lbl">Total Run Value</div><div class="fs-val" style="color:'+rvCol+'">'+framing.rv_tot.toFixed(1)+'</div></div>';
@@ -1377,8 +1377,8 @@ function selC(name){
   zoneOrder.forEach((z,i)=>{
    if(i===4) fh+='<div class="zone-cell" style="border:1px dashed var(--border);display:flex;align-items:center;justify-content:center"><span style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px">ZONE</span></div>';
    const zd=framing.zones[z];
-   const rc=zd.rv<=-1?'var(--green)':zd.rv>=1?'var(--red)':'var(--text2)';
-   const zbg=zd.rv<=-1?'var(--green-bg)':zd.rv>=1?'var(--red-bg)':'var(--bg2)';
+   const rc=zd.rv>=1?'var(--green)':zd.rv<=-1?'var(--red)':'var(--text2)';
+   const zbg=zd.rv>=1?'var(--green-bg)':zd.rv<=-1?'var(--red-bg)':'var(--bg2)';
    fh+='<div class="zone-cell" style="background:'+zbg+'"><div class="zn">'+zoneLabels[z]+'</div><div class="zv" style="color:'+rc+'">'+zd.rv.toFixed(0)+'</div><div class="zp">'+pc(zd.pct)+'</div></div>';
   });
   fh+='</div>';
@@ -1610,17 +1610,16 @@ function buildScoutCards(){
   h+='</div>';
   h+='</div>';
 
-  // Battery pairs — with USS data
+  // Battery pairs
   if(pairs&&pairs.length){
    h+='<div class="scout-section">';
    h+='<div class="scout-section-title">Probable Battery Pairs</div>';
-   h+='<table><thead><tr><th>Pitcher</th><th>CS Rate</th><th>n</th><th>USS Runs</th><th>Battery Effect</th></tr></thead><tbody>';
+   h+='<table><thead><tr><th>Pitcher</th><th>CS Rate</th><th>n</th><th>vs Catcher Avg</th></tr></thead><tbody>';
    const sorted=[...pairs].sort((a,b)=>b.n-a.n).slice(0,6);
    sorted.forEach(p=>{
     const batteryEffect=((p.rate-meta.cs_rate)*100).toFixed(1);
     const bc=p.rate>meta.cs_rate+0.03?'up':p.rate<meta.cs_rate-0.03?'dn':'';
-    const pUss=p.uss_runs!=null?p.uss_runs.toFixed(1):'—';
-    h+='<tr><td>'+p.pitcher+'</td><td>'+pc(p.rate)+'</td><td>'+p.n+'</td><td>'+(p.uss_runs!=null&&p.uss_runs>0?'<span class="up">':p.uss_runs!=null&&p.uss_runs<0?'<span class="dn">':'<span>')+pUss+'</span></td><td class="'+bc+'">'+(parseFloat(batteryEffect)>0?'+':'')+batteryEffect+'pp</td></tr>';
+    h+='<tr><td>'+p.pitcher+'</td><td class="'+bc+'">'+pc(p.rate)+'</td><td>'+p.n+'</td><td class="'+bc+'">'+(parseFloat(batteryEffect)>0?'+':'')+batteryEffect+'pp</td></tr>';
    });
    h+='</tbody></table>';
    h+='</div>';
@@ -1732,7 +1731,7 @@ function buildPDReport(){
  h+='<div class="pd-summary-box"><div class="pd-sl">USS Rate</div><div class="pd-sv">'+(ussPct*100).toFixed(0)+'%</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3);">of stolen strikes uncontested</div></div>';
 
  if(framing){
-  const tradCol=framing.rv_tot<=-5?'var(--green)':framing.rv_tot>=5?'var(--red)':'var(--text)';
+  const tradCol=framing.rv_tot>=5?'var(--green)':framing.rv_tot<=-5?'var(--red)':'var(--text)';
   h+='<div class="pd-summary-box"><div class="pd-sl">Savant Framing Runs</div><div class="pd-sv" style="color:'+tradCol+'">'+framing.rv_tot.toFixed(1)+'</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3);">Traditional metric</div></div>';
  }
  h+='</div>';
@@ -1810,34 +1809,42 @@ function buildPDReport(){
  if(framing&&framing.zones){
   h+='<div class="panel" style="margin-bottom:16px;">';
   h+='<div class="panel-head"><span class="dot" style="background:var(--orange)"></span> Zone Framing Efficiency (Savant)</div>';
-  h+='<div class="panel-desc">Savant run value by shadow zone region. Postive = runs saved (good).</div>';
+  h+='<div class="panel-desc">Savant run value by shadow zone region. Positive = runs saved (good).</div>';
   h+=buildZoneGrid(framing.zones);
   h+='</div>';
  }
 
- // ── Battery Coaching — with USS data per pair ──
+ // ── Battery Coaching ──
  if(pairs&&pairs.length){
   h+='<div class="panel" style="margin-bottom:16px;">';
   h+='<div class="panel-head"><span class="dot" style="background:var(--green)"></span> Battery Optimization</div>';
-  h+='<div class="panel-desc">Per-battery USS runs from the pipeline. Shows which pitcher pairings generate the most uncontested stolen strikes.</div>';
+  h+='<div class="panel-desc">Shadow zone CS rate by pitcher pairing. Compare to catcher average to identify synergies and mismatches.</div>';
 
-  const sorted=[...pairs].sort((a,b)=>(b.uss_runs||0)-(a.uss_runs||0));
-  h+='<table><thead><tr><th>Pitcher</th><th>CS Rate</th><th>n</th><th>USS Runs</th><th>USS%</th><th>Recommendation</th></tr></thead><tbody>';
+  // Calculate catcher's average CS rate across all batteries
+  const totalN = pairs.reduce((sum, p) => sum + p.n, 0);
+  const totalCS = pairs.reduce((sum, p) => sum + Math.round(p.rate * p.n), 0);
+  const catcherAvg = totalN > 0 ? totalCS / totalN : m.cs_rate;
+  
+  const sorted=[...pairs].sort((a,b)=>b.rate-a.rate);
+  h+='<table><thead><tr><th>Pitcher</th><th>CS Rate</th><th>n</th><th>vs Catcher Avg</th><th>Recommendation</th></tr></thead><tbody>';
   sorted.forEach(p=>{
-   const pUss=p.uss_runs||0;
-   const pUssPct=p.uss_pct||0;
-   const rvCol=pUss>0.5?'up':pUss<0?'dn':'';
+   const diff = p.rate - catcherAvg;
+   const diffPP = (diff * 100).toFixed(1);
+   const diffCol = diff > 0.03 ? 'up' : diff < -0.03 ? 'dn' : '';
+   
    let rec='';
-   if(pUss>2) rec='<span style="color:var(--green);font-weight:600;">High-value battery — pair when possible</span>';
-   else if(pUss>0.5) rec='<span style="color:var(--green);">Good USS synergy</span>';
-   else if(pUss<-0.5) rec='<span style="color:var(--red);">Negative USS — investigate</span>';
+   if(diff > 0.06) rec='<span style="color:var(--pos);font-weight:600;">High synergy — pair when possible</span>';
+   else if(diff > 0.03) rec='<span style="color:var(--pos);">Good pairing</span>';
+   else if(diff < -0.06) rec='<span style="color:var(--neg);font-weight:600;">Poor match — investigate</span>';
+   else if(diff < -0.03) rec='<span style="color:var(--neg);">Below average</span>';
    else rec='<span style="color:var(--text3);">Neutral</span>';
 
    const hasMeta=D.pitcherMeta&&D.pitcherMeta[p.pitcher];
    const nameCell=hasMeta?'<span class="link-name" onclick="jumpP(\''+esc(p.pitcher)+'\')">'+p.pitcher+'</span>':p.pitcher;
-   h+='<tr><td>'+nameCell+'</td><td>'+pc(p.rate)+'</td><td>'+p.n+'</td><td class="'+rvCol+'">'+pUss.toFixed(1)+'</td><td>'+(pUssPct*100).toFixed(0)+'%</td><td style="font-family:var(--sans);font-size:11px;">'+rec+'</td></tr>';
+   h+='<tr><td>'+nameCell+'</td><td class="'+diffCol+'">'+pc(p.rate)+'</td><td>'+p.n+'</td><td class="'+diffCol+'">'+(diff>0?'+':'')+diffPP+'pp</td><td style="font-family:var(--sans);font-size:11px;">'+rec+'</td></tr>';
   });
   h+='</tbody></table>';
+  h+='<div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px;">Catcher average: '+pc(catcherAvg)+' across '+totalN+' battery decisions</div>';
   h+='</div>';
  }
 
@@ -1880,9 +1887,11 @@ function genPDNote(name,m,edges,pairs,avg){
  }
 
  if(pairs&&pairs.length>1){
-  const byUss=[...pairs].sort((a,b)=>(b.uss_runs||0)-(a.uss_runs||0));
-  if((byUss[0].uss_runs||0)>1){
-   parts.push('<strong>Best battery:</strong> '+byUss[0].pitcher+' at '+(byUss[0].uss_runs||0).toFixed(1)+' USS runs — pair these two when possible.');
+  const byRate=[...pairs].sort((a,b)=>b.rate-a.rate);
+  const best = byRate[0];
+  const catcherAvg = pairs.reduce((sum, p) => sum + p.rate * p.n, 0) / pairs.reduce((sum, p) => sum + p.n, 0);
+  if(best.rate > catcherAvg + 0.04){
+   parts.push('<strong>Best battery:</strong> '+best.pitcher+' at '+pc(best.rate)+' ('+(((best.rate-catcherAvg)*100).toFixed(1))+'pp above catcher avg) — pair these two when possible.');
   }
  }
 
@@ -1972,7 +1981,7 @@ function genPDNote(name,m,edges,pairs,avg){
 
 function foSort(col){
  if(foSortCol===col) foSortDir=foSortDir==='desc'?'asc':'desc';
- else { foSortCol=col; foSortDir=(col==='trad_runs'?'asc':'desc'); }
+ else { foSortCol=col; foSortDir='desc'; }
  buildFOLeaderboard();
 }
 
@@ -2004,13 +2013,13 @@ function buildFOLeaderboard(){
 
  let h='<div class="panel" style="margin-bottom:16px;">';
  h+='<div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Valuation Leaderboard</div>';
- h+='<div class="panel-desc">USS Runs = uncontested stolen strike value (survives ABS). ABS Loss = runs lost when contested strikes are overturned. Post-ABS = projected framing value under challenge system. Traditional = Savant pre-ABS framing (negative = good).</div>';
+ h+='<div class="panel-desc">USS Runs = uncontested stolen strike value (survives ABS). ABS Loss = runs lost when contested strikes are overturned. Post-ABS = projected framing value under challenge system. Traditional = Savant pre-ABS framing (positive = good).</div>';
  h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th>'+thS('CS Rate','cs_rate')+thS('USS Runs','uss_runs')+thS('ABS Loss','abs_loss')+'<th>Post-ABS</th>'+thS('Trad Runs','trad_runs')+'</tr></thead><tbody>';
 
  catchers.forEach((c,i)=>{
   const isSelected=foSelected.has(c.name);
   const ussCol=c.uss_runs>1?'up':c.uss_runs<-1?'dn':'';
-  const tradCol=c.trad_runs<=-3?'up':c.trad_runs>=3?'dn':'';
+  const tradCol=c.trad_runs>=3?'up':c.trad_runs<=-3?'dn':'';
   const csCol=c.cs_rate>avg+0.02?'up':c.cs_rate<avg-0.02?'dn':'';
   const absLossCol=c.abs_loss>1?'dn':'';
   const postABS=c.uss_runs; // USS runs = post-ABS value
@@ -2098,7 +2107,7 @@ function buildFOCompare(){
    {label:'ABS Loss',val:'−'+c.abs_loss.toFixed(1),raw:c.abs_loss,refRaw:ref.abs_loss,fmt:'num',good:'lower'},
    {label:'Post-ABS Value',val:postABS.toFixed(1),raw:postABS,refRaw:refPostABS,fmt:'num',good:'higher'},
    {label:'% Retained',val:((c.uss_runs + c.abs_loss)>0?((postABS/(c.uss_runs + c.abs_loss))*100).toFixed(0):100)+'%',raw:(c.uss_runs + c.abs_loss)>0?(postABS/(c.uss_runs + c.abs_loss)):1,refRaw:(ref.uss_runs + ref.abs_loss)>0?(refPostABS/(ref.uss_runs + ref.abs_loss)):1,fmt:'pct',good:'higher'},
-   {label:'Trad Framing Runs',val:c.trad_runs!==0?c.trad_runs.toFixed(1):'—',raw:c.trad_runs,refRaw:ref.trad_runs,fmt:'num',good:'lower'}
+   {label:'Trad Framing Runs',val:c.trad_runs!==0?c.trad_runs.toFixed(1):'—',raw:c.trad_runs,refRaw:ref.trad_runs,fmt:'num',good:'higher'}
   ];
 
   metrics.forEach(met=>{
