@@ -1408,7 +1408,7 @@ function buildFOLeaderboard(){
 
  let h='<div class="panel" style="margin-bottom:16px;">';
  h+='<div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Valuation Leaderboard</div>';
- h+='<div class="panel-desc">Two parallel valuations: USS Runs = RE288-weighted run value of uncontested stolen strikes (ABS-era projection). Traditional = Savant framing run value (pre-ABS baseline, negative = good). These overlap — USS is a subset of traditional framing filtered for contestability.</div>';
+ h+='<div class="panel-desc">Two parallel valuations: USS Runs = RE288-weighted run value of uncontested stolen strikes (ABS-era projection). Traditional = Savant framing run value (pre-ABS baseline, positive = good). These overlap — USS is a subset of traditional framing filtered for contestability.</div>';
  h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th>'+thS('CS Rate','cs_rate')+thS('Steals','stolen_strikes')+'<th>USS</th>'+thS('USS Runs','uss_runs')+thS('USS/100','uss_per100')+thS('Trad Runs','trad_runs')+'</tr></thead><tbody>';
 
  catchers.forEach((c,i)=>{
