@@ -395,6 +395,18 @@
      <div id="ov-tbl"></div>
     </div>
    </div>
+   <div class="grid grid-2" style="margin-top:16px;">
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Pitcher ABS Impact</div>
+     <div class="panel-desc">Pitchers most affected by ABS challenges. ABS Loss = contested strikes × run value.</div>
+     <div id="ov-pitcher-abs"></div>
+    </div>
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher ABS Impact</div>
+     <div class="panel-desc">Catchers most affected by ABS challenges.</div>
+     <div id="ov-catcher-abs"></div>
+    </div>
+   </div>
   </div>
 
   <!-- ── PLATOON ── -->
@@ -941,6 +953,61 @@ function buildOV(){
    const dc=parseFloat(df)>0?'up':parseFloat(df)<0?'dn':'';
    return '<tr><td>'+r.seq+'</td><td class="'+c+'">'+pc(r.rate)+'</td><td>'+r.n.toLocaleString()+'</td><td class="'+dc+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td></tr>';
   }).join('')+'</tbody></table>';
+
+ // ABS Impact leaderboards
+ const cv = D.summary.challenge_value || 0.2;
+ 
+ // Pitcher ABS Impact
+ const pitcherABS = Object.entries(D.pitcherMeta)
+  .map(([name, m]) => ({
+   name,
+   team: m.team,
+   contested: m.contested || 0,
+   uss_runs: m.uss_runs || 0,
+   abs_loss: (m.contested || 0) * cv
+  }))
+  .filter(p => p.abs_loss > 0)
+  .sort((a, b) => b.abs_loss - a.abs_loss)
+  .slice(0, 10);
+
+ if(pitcherABS.length){
+  document.getElementById('ov-pitcher-abs').innerHTML =
+   '<table><thead><tr><th>Pitcher</th><th>Team</th><th>USS Runs</th><th>ABS Loss</th></tr></thead><tbody>' +
+   pitcherABS.map(p => {
+    const ussCol = p.uss_runs > 1 ? 'up' : p.uss_runs < 0 ? 'dn' : '';
+    return '<tr class="clickable" onclick="jumpP(\'' + esc(p.name) + '\')"><td>' + p.name + '</td><td>' + p.team + '</td><td class="' + ussCol + '">' + p.uss_runs.toFixed(1) + '</td><td class="dn">−' + p.abs_loss.toFixed(1) + '</td></tr>';
+   }).join('') + '</tbody></table>';
+ } else {
+  document.getElementById('ov-pitcher-abs').innerHTML = '<span style="color:var(--text3);font-size:12px">No pitcher ABS data available.</span>';
+ }
+
+ // Catcher ABS Impact
+ if(D.catcherMeta){
+  const catcherABS = Object.entries(D.catcherMeta)
+   .map(([name, m]) => ({
+    name,
+    team: m.team,
+    contested: m.contested || 0,
+    uss_runs: m.uss_runs || 0,
+    abs_loss: (m.contested || 0) * cv
+   }))
+   .filter(c => c.abs_loss > 0)
+   .sort((a, b) => b.abs_loss - a.abs_loss)
+   .slice(0, 10);
+
+  if(catcherABS.length){
+   document.getElementById('ov-catcher-abs').innerHTML =
+    '<table><thead><tr><th>Catcher</th><th>Team</th><th>USS Runs</th><th>ABS Loss</th></tr></thead><tbody>' +
+    catcherABS.map(c => {
+     const ussCol = c.uss_runs > 1 ? 'up' : c.uss_runs < 0 ? 'dn' : '';
+     return '<tr class="clickable" onclick="jumpC(\'' + esc(c.name) + '\')"><td>' + c.name + '</td><td>' + c.team + '</td><td class="' + ussCol + '">' + c.uss_runs.toFixed(1) + '</td><td class="dn">−' + c.abs_loss.toFixed(1) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  } else {
+   document.getElementById('ov-catcher-abs').innerHTML = '<span style="color:var(--text3);font-size:12px">No catcher ABS data available.</span>';
+  }
+ } else {
+  document.getElementById('ov-catcher-abs').innerHTML = '<span style="color:var(--text3);font-size:12px">Catcher data not available.</span>';
+ }
 }
 
 /* ── PLATOON ── */
@@ -1174,7 +1241,7 @@ function genNote(name,m,seqs,plat,avg){
  if(devTargets.length > 0){
   devTargets.sort((a,b) => b.runs - a.runs);
   const top = devTargets.slice(0, 2);
-  parts.push('<br><br><strong style="color:var(--accent);">⬆ DEVELOPMENT TARGETS:</strong>');
+  parts.push('<br><br><strong style="color:var(--pos);">⬆ DEVELOPMENT TARGETS:</strong>');
   top.forEach(t => {
    parts.push('<br>• Improving <strong>' + t.label + '</strong> from ' + pc(t.current) + ' to league avg (' + pc(t.target) + ') would add <strong style="color:var(--pos);">~' + t.runs.toFixed(1) + ' runs</strong> over ' + t.n + ' opportunities.');
   });
@@ -1483,7 +1550,7 @@ function genCNote(name,m,edges,pairs,avg){
  if(devTargets.length > 0){
   devTargets.sort((a,b) => b.runs - a.runs);
   const top = devTargets.slice(0, 2);
-  parts.push('<br><br><strong style="color:var(--accent);">⬆ DEVELOPMENT TARGETS:</strong>');
+  parts.push('<br><br><strong style="color:var(--pos);">⬆ DEVELOPMENT TARGETS:</strong>');
   top.forEach(t => {
    if(t.type === 'edge'){
     parts.push('<br>• Improving <strong>' + t.label + '</strong> from ' + pc(t.current) + ' to league avg (' + pc(t.target) + ') would add <strong style="color:var(--pos);">~' + t.runs.toFixed(1) + ' runs</strong> over ' + t.n + ' opportunities.');
@@ -1960,7 +2027,7 @@ function genPDNote(name,m,edges,pairs,avg){
  // Add development targets section
  if(devTargets.length > 0){
   devTargets.sort((a,b) => b.runs - a.runs);
-  parts.push('<br><br><strong style="color:var(--accent);">📈 DEVELOPMENT PLAN:</strong>');
+  parts.push('<br><br><strong style="color:var(--pos);">📈 DEVELOPMENT PLAN:</strong>');
   devTargets.slice(0, 3).forEach((t, i) => {
    parts.push('<br><strong>' + (i+1) + '. ' + t.label + '</strong>: Currently ' + pc(t.current) + ' → Target ' + pc(t.target) + ' (league avg). <strong style="color:var(--pos);">Potential: +' + t.runs.toFixed(1) + ' runs</strong> over ' + t.n + ' opportunities. <em>' + t.action + '</em>');
   });
@@ -2013,8 +2080,8 @@ function buildFOLeaderboard(){
 
  let h='<div class="panel" style="margin-bottom:16px;">';
  h+='<div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Valuation Leaderboard</div>';
- h+='<div class="panel-desc">USS Runs = uncontested stolen strike value (survives ABS). ABS Loss = runs lost when contested strikes are overturned. Post-ABS = projected framing value under challenge system. Traditional = Savant pre-ABS framing (positive = good).</div>';
- h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th>'+thS('CS Rate','cs_rate')+thS('USS Runs','uss_runs')+thS('ABS Loss','abs_loss')+'<th>Post-ABS</th>'+thS('Trad Runs','trad_runs')+'</tr></thead><tbody>';
+ h+='<div class="panel-desc">USS Runs = uncontested stolen strike value (survives ABS challenges). ABS Loss = runs lost when contested strikes get overturned. Traditional = Savant pre-ABS framing (positive = good).</div>';
+ h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th>'+thS('CS Rate','cs_rate')+thS('USS Runs','uss_runs')+thS('ABS Loss','abs_loss')+thS('Trad Runs','trad_runs')+'</tr></thead><tbody>';
 
  catchers.forEach((c,i)=>{
   const isSelected=foSelected.has(c.name);
@@ -2022,7 +2089,6 @@ function buildFOLeaderboard(){
   const tradCol=c.trad_runs>=3?'up':c.trad_runs<=-3?'dn':'';
   const csCol=c.cs_rate>avg+0.02?'up':c.cs_rate<avg-0.02?'dn':'';
   const absLossCol=c.abs_loss>1?'dn':'';
-  const postABS=c.uss_runs; // USS runs = post-ABS value
 
   h+='<tr class="clickable" style="'+(isSelected?'background:var(--blue-bg);':'')+'">';
   h+='<td><button class="fo-add-btn'+(isSelected?' on':'')+'" onclick="event.stopPropagation();toggleFOSelect(\''+esc(c.name)+'\')" style="padding:2px 8px;font-size:10px;">'+(isSelected?'✓':'+')+' </button></td>';
@@ -2032,7 +2098,6 @@ function buildFOLeaderboard(){
   h+='<td class="'+csCol+'">'+pc(c.cs_rate)+'</td>';
   h+='<td class="'+ussCol+'">'+c.uss_runs.toFixed(1)+'</td>';
   h+='<td class="'+absLossCol+'">−'+c.abs_loss.toFixed(1)+'</td>';
-  h+='<td class="'+ussCol+'">'+postABS.toFixed(1)+'</td>';
   h+='<td class="'+tradCol+'">'+(c.trad_runs!==0?c.trad_runs.toFixed(1):'—')+'</td>';
   h+='</tr>';
  });
@@ -2099,14 +2164,10 @@ function buildFOCompare(){
   h+='<div class="fo-team">'+c.team+' · '+c.decisions+' decisions</div>';
 
   // Metrics - now with ABS projections
-  const postABS = c.uss_runs; // USS runs = what survives ABS
-  const refPostABS = ref.uss_runs;
   const metrics=[
    {label:'Shadow CS Rate',val:pc(c.cs_rate),raw:c.cs_rate,refRaw:ref.cs_rate,fmt:'pct',good:'higher'},
-   {label:'Pre-ABS Value',val:(c.uss_runs + c.abs_loss).toFixed(1),raw:c.uss_runs + c.abs_loss,refRaw:ref.uss_runs + ref.abs_loss,fmt:'num',good:'higher'},
+   {label:'USS Runs (Post-ABS)',val:c.uss_runs.toFixed(1),raw:c.uss_runs,refRaw:ref.uss_runs,fmt:'num',good:'higher'},
    {label:'ABS Loss',val:'−'+c.abs_loss.toFixed(1),raw:c.abs_loss,refRaw:ref.abs_loss,fmt:'num',good:'lower'},
-   {label:'Post-ABS Value',val:postABS.toFixed(1),raw:postABS,refRaw:refPostABS,fmt:'num',good:'higher'},
-   {label:'% Retained',val:((c.uss_runs + c.abs_loss)>0?((postABS/(c.uss_runs + c.abs_loss))*100).toFixed(0):100)+'%',raw:(c.uss_runs + c.abs_loss)>0?(postABS/(c.uss_runs + c.abs_loss)):1,refRaw:(ref.uss_runs + ref.abs_loss)>0?(refPostABS/(ref.uss_runs + ref.abs_loss)):1,fmt:'pct',good:'higher'},
    {label:'Trad Framing Runs',val:c.trad_runs!==0?c.trad_runs.toFixed(1):'—',raw:c.trad_runs,refRaw:ref.trad_runs,fmt:'num',good:'higher'}
   ];
 
