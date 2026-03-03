@@ -1,7 +1,3 @@
-// Shadow Zone Data — 2025 MLB Season
-// Generated 2026-02-26 20:28
-// 535 qualified pitchers, 95,691 shadow zone called decisions
-
 const pitcherSequences = {
   "Mize, Casey": [
     {
