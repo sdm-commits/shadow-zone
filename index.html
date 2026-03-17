@@ -1,29 +1,1995 @@
-<h1>Shadow Zone Module</h1>
-<span class="tag" id="tag">2025</span>
-<button class="glossary-btn" onclick="toggleGlossary()" title="Glossary">?</button>
-   <a href="https://github.com/tangotiger" target="_blank" rel="noopener" class="github-link" title="Based on Tango's ABS Challenge Model">
-   <a href="https://github.com/sdm-commits" target="_blank" rel="noopener" class="github-link" title="">
-<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-</a>
-<div style="margin-left:auto;position:relative;">
-<button class="export-btn" onclick="document.getElementById('export-menu').classList.toggle('hidden')" style="padding:6px 12px;">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-Export Data
-</button>
-<div id="export-menu" class="hidden" style="position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);min-width:180px;z-index:50;">
-<button class="export-menu-item" onclick="exportPitchers();document.getElementById('export-menu').classList.add('hidden')">All Pitchers (CSV)</button>
-<button class="export-menu-item" onclick="exportCatchers();document.getElementById('export-menu').classList.add('hidden')">All Catchers (CSV)</button>
-<button class="export-menu-item" onclick="exportTeamABS();document.getElementById('export-menu').classList.add('hidden')">Team ABS Impact (CSV)</button>
-</div>
-</div>
-</div>
-<p>Pitch sequence effects, platoon edge vulnerability, and ABS challenge impact — <span id="hc"></span> qualified pitchers, <span id="hd"></span> shadow zone called decisions.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shadow Zone — Sequence + Platoon + ABS Impact</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+ :root {
+  --bg: #ffffff; --bg2: #f8f9fa; --bg3: #f1f3f5;
+  --surface: #ffffff; --border: #e9ecef; --border2: #dee2e6;
+  --text: #1a1a2e; --text2: #6c757d; --text3: #adb5bd;
+  --accent: #c62828; --accent-bg: rgba(198,40,40,0.06);
+  /* Semantic: pos=good (red for defense), neg=bad (blue for offense) */
+  --pos: #c62828; --pos-bg: rgba(198,40,40,0.08);
+  --neg: #1565c0; --neg-bg: rgba(21,101,192,0.08);
+  --neu: #6c757d; --neu-bg: rgba(108,117,125,0.08);
+  /* Legacy aliases */
+  --green: #2e7d32; --green-bg: rgba(46,125,50,0.08);
+  --red: var(--neg); --red-bg: var(--neg-bg);
+  --blue: #6366f1; --blue-bg: rgba(99,102,241,0.08);
+  --orange: var(--neu); --orange-bg: var(--neu-bg);
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+ }
+ * { margin:0; padding:0; box-sizing:border-box; }
+ body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; -webkit-font-smoothing:antialiased; }
+
+ .header { padding:24px 32px 20px; border-bottom:1px solid var(--border); }
+ .header-row { display:flex; align-items:center; gap:12px; margin-bottom:4px; }
+ .header h1 { font-size:20px; font-weight:700; letter-spacing:-0.4px; }
+ .header .tag { font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:0.8px; background:var(--accent-bg); color:var(--accent); padding:3px 8px; border-radius:4px; }
+ .header p { font-size:13px; color:var(--text2); margin-top:2px; }
+
+ .content { padding:0 32px 40px; }
+
+ .stats { display:flex; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:20px 0 24px; flex-wrap:wrap; }
+ .stat { flex:1; background:var(--surface); padding:14px 16px; min-width:120px; }
+ .stat .label { font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:1.2px; color:var(--text3); text-transform:uppercase; margin-bottom:4px; }
+ .stat .val { font-family:var(--mono); font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+ .stat .sub { font-size:11px; color:var(--text3); margin-top:1px; }
+
+ .tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:24px; overflow-x:auto; }
+ .tab { padding:10px 20px; font-family:var(--sans); font-size:13px; font-weight:500; color:var(--text2); background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all 0.12s; white-space:nowrap; }
+ .tab:hover { color:var(--text); }
+ .tab.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+ .yr-btn { padding:6px 14px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; border:none; background:transparent; color:var(--text2); font-family:var(--sans); transition:all .15s; }
+ .yr-btn:hover { color:var(--text); }
+ .yr-btn.active { background:var(--accent); color:#fff; font-weight:600; }
+
+ .grid { display:grid; gap:16px; }
+ .grid-2 { grid-template-columns:1fr 1fr; }
+ .grid-3 { grid-template-columns:1fr 1fr 1fr; }
+
+ .panel { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; }
+ .panel-head { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:var(--text2); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+ .panel-head .dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+ .panel-desc { font-size:12px; color:var(--text3); margin-bottom:14px; }
+
+ .bars { display:flex; flex-direction:column; gap:6px; }
+ .bar-row { display:flex; align-items:center; gap:8px; }
+ .bar-lbl { width:110px; text-align:right; font-family:var(--mono); font-size:11px; color:var(--text2); flex-shrink:0; }
+ .bar-track { flex:1; height:24px; background:var(--bg2); border-radius:4px; overflow:hidden; }
+ .bar-fill { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:8px; transition:width 0.4s ease; min-width:38px; }
+ .bar-val { font-family:var(--mono); font-size:10px; font-weight:700; color:#fff; white-space:nowrap; }
+ .bar-n { width:52px; text-align:right; font-family:var(--mono); font-size:10px; color:var(--text3); flex-shrink:0; }
+
+ .note { background:var(--bg2); border-left:3px solid var(--accent); padding:12px 14px; border-radius:0 6px 6px 0; font-size:13px; line-height:1.6; margin-top:14px; }
+ .note strong { color:var(--accent); }
+
+ table { width:100%; border-collapse:collapse; }
+ th { text-align:left; font-family:var(--mono); font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text3); padding:8px 10px; border-bottom:2px solid var(--border2); }
+ th.sortable { cursor:pointer; user-select:none; position:relative; padding-right:18px; }
+ th.sortable:hover { color:var(--text1); }
+ th.sortable::after { content:'⇅'; position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:10px; opacity:0.4; }
+ th.sortable.asc::after { content:'↑'; opacity:1; color:var(--accent); }
+ th.sortable.desc::after { content:'↓'; opacity:1; color:var(--accent); }
+ td { padding:7px 10px; font-family:var(--mono); font-size:12px; border-bottom:1px solid var(--border); }
+ tr:last-child td { border-bottom:none; }
+ tr:hover td { background:var(--bg2); }
+ .up { color:var(--green); font-weight:600; }
+ .dn { color:var(--neg); font-weight:600; }
+
+ /* Tooltips */
+ .tip { position:relative; cursor:help; border-bottom:1px dotted var(--text3); }
+ .tip::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:var(--text); color:#fff; font-family:var(--sans); font-size:11px; font-weight:400; padding:6px 10px; border-radius:4px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity 0.15s; z-index:100; }
+ .tip::before { content:''; position:absolute; bottom:calc(100% + 2px); left:50%; transform:translateX(-50%); border:4px solid transparent; border-top-color:var(--text); opacity:0; pointer-events:none; transition:opacity 0.15s; z-index:100; }
+ .tip:hover::after, .tip:hover::before { opacity:1; }
+ 
+ /* Glossary button */
+ .glossary-btn { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:var(--bg2); border:1px solid var(--border); font-family:var(--mono); font-size:10px; font-weight:600; color:var(--text3); cursor:pointer; margin-left:8px; transition:all 0.1s; }
+ .glossary-btn:hover { background:var(--bg3); color:var(--text); border-color:var(--border2); }
+ .github-link { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--text3); margin-left:8px; transition:color 0.1s; }
+ .github-link:hover { color:var(--text); }
+ .github-link svg { width:18px; height:18px; }
+ .glossary-popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px 24px; box-shadow:0 8px 30px rgba(0,0,0,0.12); z-index:1000; max-width:480px; max-height:80vh; overflow-y:auto; }
+ .glossary-popup h3 { font-size:14px; font-weight:700; margin-bottom:12px; }
+ .glossary-popup dl { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:12px; }
+ .glossary-popup dt { font-family:var(--mono); font-weight:600; color:var(--accent); }
+ .glossary-popup dd { color:var(--text2); }
+ .glossary-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:999; }
+ .glossary-close { position:absolute; top:12px; right:12px; background:none; border:none; font-size:18px; color:var(--text3); cursor:pointer; }
+ .glossary-close:hover { color:var(--text); }
+
+ .controls { display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+ select,.search { font-family:var(--sans); font-size:13px; padding:7px 12px; border:1px solid var(--border2); border-radius:6px; background:var(--surface); color:var(--text); outline:none; transition:border-color 0.15s; }
+ select:focus,.search:focus { border-color:var(--accent); }
+ select { min-width:160px; cursor:pointer; }
+ .search { min-width:220px; }
+ .search::placeholder { color:var(--text3); }
+
+ .chips { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:14px; max-height:100px; overflow-y:auto; }
+ .chips::-webkit-scrollbar { width:3px; }
+ .chips::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+ .chip { padding:4px 10px; border-radius:4px; font-family:var(--mono); font-size:11px; font-weight:500; color:var(--text2); background:var(--bg2); border:1px solid var(--border); cursor:pointer; transition:all 0.1s; white-space:nowrap; }
+ .chip:hover { border-color:var(--accent); color:var(--text); }
+ .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+
+ .clickable { cursor:pointer; }
+ .clickable:hover td { background:var(--bg3); }
+ .link-name { color:var(--blue); cursor:pointer; text-decoration:none; }
+ .link-name:hover { text-decoration:underline; }
+
+ .zone-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; max-width:320px; margin:0 auto; }
+ .zone-cell { padding:10px 6px; border-radius:6px; text-align:center; border:1px solid var(--border); }
+ .zone-cell .zn { font-family:var(--mono); font-size:9px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+ .zone-cell .zv { font-family:var(--mono); font-size:14px; font-weight:700; }
+ .zone-cell .zp { font-family:var(--mono); font-size:10px; color:var(--text2); margin-top:2px; }
+
+ .framing-summary { display:flex; gap:16px; align-items:center; justify-content:center; margin-bottom:16px; }
+ .framing-summary .fs-val { font-family:var(--mono); font-size:28px; font-weight:700; }
+ .framing-summary .fs-lbl { font-family:var(--mono); font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.8px; }
+
+ .p-card { display:flex; align-items:center; gap:16px; border:1px solid var(--border); border-radius:8px; padding:14px 18px; margin-bottom:16px; background:var(--bg2); }
+ .p-card .name { font-size:17px; font-weight:700; letter-spacing:-0.3px; }
+ .p-card .meta { display:flex; gap:8px; margin-top:3px; font-family:var(--mono); font-size:11px; color:var(--text2); flex-wrap:wrap; }
+ .p-card .meta .t { background:var(--bg3); padding:1px 7px; border-radius:3px; font-weight:500; }
+ .p-card .cs { margin-left:auto; font-family:var(--mono); font-size:26px; font-weight:700; padding:4px 14px; border-radius:6px; }
+
+ .mu-tabs { display:flex; gap:4px; margin-bottom:16px; }
+ .mu-btn { padding:6px 12px; border-radius:5px; font-family:var(--mono); font-size:11px; font-weight:500; color:var(--text2); background:var(--bg2); border:1px solid var(--border); cursor:pointer; transition:all 0.1s; }
+ .mu-btn:hover { border-color:var(--blue); color:var(--text); }
+ .mu-btn.on { background:var(--blue); color:#fff; border-color:var(--blue); font-weight:600; }
+
+ .edge-map { position:relative; width:220px; height:260px; margin:0 auto; }
+ .edge-zone { position:absolute; display:flex; align-items:center; justify-content:center; flex-direction:column; font-family:var(--mono); border-radius:4px; transition:all 0.2s; }
+ .edge-zone .r { font-size:17px; font-weight:700; }
+ .edge-zone .n { font-size:9px; opacity:0.6; }
+ .sz-outline { position:absolute; border:2px solid var(--border2); border-radius:2px; }
+
+ .team-name { font-size:18px; font-weight:700; margin-bottom:4px; }
+ .team-sub { font-family:var(--mono); font-size:11px; color:var(--text2); margin-bottom:16px; }
+ .clickable { cursor:pointer; }
+ .clickable:hover td:first-child { color:var(--accent); text-decoration:underline; }
+
+ .loading { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; gap:12px; }
+ .spin { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp 0.7s linear infinite; }
+ @keyframes sp { to { transform:rotate(360deg); } }
+ .hidden { display:none !important; }
+
+ /* ── Scouting Card Print ── */
+ .scout-card { border:1px solid var(--border); border-radius:8px; padding:20px; margin-bottom:16px; break-inside:avoid; }
+ .scout-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; border-bottom:2px solid var(--border2); padding-bottom:10px; }
+ .scout-card-header .sc-name { font-size:16px; font-weight:700; }
+ .scout-card-header .sc-meta { font-family:var(--mono); font-size:11px; color:var(--text2); }
+ .scout-card-header .sc-rate { font-family:var(--mono); font-size:22px; font-weight:700; }
+ .scout-section { margin-bottom:12px; }
+ .scout-section-title { font-family:var(--mono); font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text3); margin-bottom:6px; }
+ .scout-edge-row { display:flex; gap:8px; margin-bottom:4px; align-items:center; font-family:var(--mono); font-size:12px; }
+ .scout-edge-label { width:70px; text-align:right; color:var(--text2); }
+ .scout-edge-bar { flex:1; height:20px; background:var(--bg2); border-radius:3px; overflow:hidden; }
+ .scout-edge-fill { height:100%; border-radius:3px; display:flex; align-items:center; padding-left:6px; }
+ .scout-edge-fill span { font-size:10px; font-weight:700; color:#fff; }
+ .scout-edge-n { width:45px; text-align:right; font-size:10px; color:var(--text3); }
+ .scout-strategy { background:var(--bg2); border-left:3px solid var(--blue); padding:10px 12px; border-radius:0 6px 6px 0; font-size:12px; line-height:1.6; }
+ .scout-strategy strong { color:var(--blue); }
+ .btn-print { padding:8px 16px; border-radius:6px; font-family:var(--sans); font-size:13px; font-weight:600; color:#fff; background:var(--accent); border:none; cursor:pointer; transition:background 0.15s; }
+ .btn-print:hover { background:#a71d1d; }
+
+ /* ── Player Dev ── */
+ .pd-bucket { display:flex; gap:6px; align-items:center; margin-bottom:4px; font-family:var(--mono); font-size:12px; }
+ .pd-bucket .pd-label { width:100px; text-align:right; color:var(--text2); font-size:11px; }
+ .pd-bucket .pd-bar { flex:1; height:22px; background:var(--bg2); border-radius:3px; overflow:hidden; position:relative; }
+ .pd-bucket .pd-fill { height:100%; border-radius:3px; display:flex; align-items:center; padding-left:6px; }
+ .pd-bucket .pd-fill span { font-size:10px; font-weight:700; color:#fff; }
+ .pd-bucket .pd-tag { width:80px; text-align:center; font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; padding:2px 6px; border-radius:3px; }
+ .pd-tag-productive { background:var(--green-bg); color:var(--green); }
+ .pd-tag-wasted { background:var(--neg-bg); color:var(--neg); }
+ .pd-tag-mixed { background:var(--neu-bg); color:var(--neu); }
+ .pd-summary-row { display:flex; gap:16px; margin-bottom:16px; }
+ .pd-summary-box { flex:1; text-align:center; padding:14px; border:1px solid var(--border); border-radius:8px; }
+ .pd-summary-box .pd-sv { font-family:var(--mono); font-size:24px; font-weight:700; }
+ .pd-summary-box .pd-sl { font-family:var(--mono); font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:var(--text3); margin-bottom:4px; }
+
+ /* ── Front Office ── */
+ .fo-compare-card { border:1px solid var(--border); border-radius:8px; padding:16px; background:var(--surface); }
+ .fo-compare-card .fo-name { font-size:15px; font-weight:700; margin-bottom:2px; }
+ .fo-compare-card .fo-team { font-family:var(--mono); font-size:11px; color:var(--text2); margin-bottom:10px; }
+ .fo-metric { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
+ .fo-metric:last-child { border-bottom:none; }
+ .fo-metric .fo-ml { font-family:var(--mono); font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; }
+ .fo-metric .fo-mv { font-family:var(--mono); font-size:16px; font-weight:700; }
+ .fo-delta { display:inline-block; font-family:var(--mono); font-size:11px; font-weight:600; padding:2px 6px; border-radius:3px; margin-left:6px; }
+ .fo-delta.pos { background:var(--green-bg); color:var(--green); }
+ .fo-delta.neg { background:var(--neg-bg); color:var(--neg); }
+ .fo-delta.neu { background:var(--bg2); color:var(--text3); }
+ .fo-add-btn { padding:6px 14px; border-radius:6px; font-family:var(--mono); font-size:11px; font-weight:600; color:var(--blue); background:var(--blue-bg); border:1px solid transparent; cursor:pointer; transition:all 0.1s; }
+ .fo-add-btn:hover { border-color:var(--blue); }
+ .fo-add-btn.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+ .fo-compare-grid { display:grid; gap:16px; margin-top:16px; }
+
+ /* Export buttons */
+ .export-btn { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; border-radius:4px; font-family:var(--mono); font-size:10px; font-weight:500; color:var(--text2); background:var(--bg2); border:1px solid var(--border); cursor:pointer; transition:all 0.1s; }
+ .export-btn:hover { background:var(--bg3); border-color:var(--border2); color:var(--text); }
+ .export-btn svg { width:12px; height:12px; }
+ .panel-head-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+ .panel-head-row .panel-head { margin-bottom:0; }
+ .export-menu-item { display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:none; font-family:var(--sans); font-size:13px; color:var(--text); cursor:pointer; border-bottom:1px solid var(--border); transition:background 0.1s; }
+ .export-menu-item:last-child { border-bottom:none; }
+ .export-menu-item:hover { background:var(--bg2); }
+
+ /* ABS Projection - Updated for USS + ULS */
+ .abs-projection { margin-top:16px; padding:16px; background:linear-gradient(135deg, var(--bg2) 0%, var(--surface) 100%); border:1px solid var(--border); border-radius:8px; }
+ .abs-projection-header { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+ .abs-projection-header .abs-badge { font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:0.8px; padding:3px 8px; border-radius:4px; background:var(--accent); color:#fff; }
+ .abs-projection-header span { font-size:12px; font-weight:600; color:var(--text2); }
+ .abs-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; }
+ .abs-stat { text-align:center; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; }
+ .abs-stat .abs-label { font-family:var(--mono); font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:var(--text3); margin-bottom:4px; }
+ .abs-stat .abs-value { font-family:var(--mono); font-size:18px; font-weight:700; }
+ .abs-stat .abs-sub { font-size:10px; color:var(--text3); margin-top:2px; }
+ .abs-stat.loss .abs-value { color:var(--neg); }
+ .abs-stat.gain .abs-value { color:var(--green); }
+ .abs-stat.net-pos .abs-value { color:var(--green); }
+ .abs-stat.net-neg .abs-value { color:var(--neg); }
+ .abs-summary { margin-top:12px; font-size:12px; line-height:1.5; color:var(--text2); padding:10px 12px; background:var(--bg2); border-radius:4px; border-left:3px solid var(--accent); }
+
+ /* Net ABS badge */
+ .net-abs-badge { display:inline-block; font-family:var(--mono); font-size:11px; font-weight:700; padding:2px 8px; border-radius:4px; }
+ .net-abs-badge.positive { background:var(--green-bg); color:var(--green); }
+ .net-abs-badge.negative { background:var(--neg-bg); color:var(--neg); }
+ .net-abs-badge.neutral { background:var(--neu-bg); color:var(--neu); }
+
+ /* Methodology section */
+ .methodology { margin:20px 0 24px; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+ .methodology-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--bg2); border:none; cursor:pointer; font-family:var(--sans); font-size:13px; font-weight:600; color:var(--text); text-align:left; }
+ .methodology-toggle:hover { background:var(--bg3); }
+ .methodology-toggle svg { width:16px; height:16px; color:var(--text3); transition:transform 0.2s; }
+ .methodology.open .methodology-toggle svg { transform:rotate(180deg); }
+ .methodology-content { display:none; padding:18px 20px; background:var(--surface); border-top:1px solid var(--border); }
+ .methodology.open .methodology-content { display:block; }
+ .methodology h4 { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text2); margin:16px 0 8px; }
+ .methodology h4:first-child { margin-top:0; }
+ .methodology p { font-size:13px; line-height:1.6; color:var(--text); margin-bottom:10px; }
+ .methodology ul { font-size:13px; line-height:1.6; color:var(--text); margin:0 0 10px 20px; }
+ .methodology li { margin-bottom:4px; }
+ .methodology code { font-family:var(--mono); font-size:11px; background:var(--bg2); padding:2px 5px; border-radius:3px; }
+ .methodology .formula { font-family:var(--mono); font-size:12px; background:var(--bg2); padding:10px 14px; border-radius:4px; margin:10px 0; border-left:3px solid var(--accent); }
+ .methodology .cite { font-size:12px; color:var(--text2); font-style:italic; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+ .methodology .insight { background:var(--green-bg); border-left:3px solid var(--green); padding:10px 14px; border-radius:0 4px 4px 0; margin:12px 0; }
+ .methodology .insight strong { color:var(--green); }
+
+ @media print {
+  body { background:#fff; }
+  .header, .tabs, .controls, .stats, .btn-print,
+  #tab-overview, #tab-platoon, #tab-pitchers, #tab-team, #tab-catchers,
+  #tab-playerdev, #tab-frontoffice { display:none !important; }
+  #tab-scout { display:block !important; }
+  .scout-card { border:1px solid #ccc; page-break-inside:avoid; }
+  .content { padding:0 16px; }
+  .scout-print-header { display:block !important; }
+ }
+ .scout-print-header { display:none; margin-bottom:16px; }
+ .scout-print-header h2 { font-size:18px; font-weight:700; }
+ .scout-print-header p { font-size:12px; color:var(--text2); }
+
+ @media (max-width:860px) {
+  .grid-2 { grid-template-columns:1fr; }
+  .grid-3 { grid-template-columns:1fr; }
+  .header,.content { padding-left:16px; padding-right:16px; }
+  .stats { flex-wrap:wrap; }
+  .stat { min-width:140px; }
+  .pd-summary-row { flex-wrap:wrap; }
+  .pd-summary-box { min-width:140px; }
+  .abs-grid { grid-template-columns:repeat(2, 1fr); }
+ }
+</style>
+</head>
+<body>
+
+<div id="load" class="loading">
+ <div class="spin"></div>
+ <span style="font-size:13px;color:var(--text2)">Loading shadow zone data…</span>
 </div>
 
-<!-- Glossary Popup -->
-<div id="glossary-overlay" class="glossary-overlay hidden" onclick="toggleGlossary()"></div>
-<div id="glossary-popup" class="glossary-popup hidden">
-<button class="glossary-close" onclick="toggleGlossary()">×</button>
-<h3>Glossary</h3>
-<dl>
-<dt>FB</dt><dd>Fastball (4-seam, 2-seam, sinker, cutter)</dd>
+<div id="app" class="hidden">
+ <div class="header">
+  <div class="header-row">
+   <h1>Shadow Zone Module</h1>
+   <span class="tag" id="tag">2025</span>
+   <button class="glossary-btn" onclick="toggleGlossary()" title="Glossary">?</button>
+   <a href="https://github.com/sdm-commits" target="_blank" rel="noopener" class="github-link" title="">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+   </a>
+   <div style="margin-left:auto;position:relative;">
+    <button class="export-btn" onclick="document.getElementById('export-menu').classList.toggle('hidden')" style="padding:6px 12px;">
+     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+     Export Data
+    </button>
+    <div id="export-menu" class="hidden" style="position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);min-width:180px;z-index:50;">
+     <button class="export-menu-item" onclick="exportPitchers();document.getElementById('export-menu').classList.add('hidden')">All Pitchers (CSV)</button>
+     <button class="export-menu-item" onclick="exportCatchers();document.getElementById('export-menu').classList.add('hidden')">All Catchers (CSV)</button>
+     <button class="export-menu-item" onclick="exportTeamABS();document.getElementById('export-menu').classList.add('hidden')">Team ABS Impact (CSV)</button>
+    </div>
+   </div>
+  </div>
+  <p>Pitch sequence effects, platoon edge vulnerability, and ABS challenge impact — <span id="hc"></span> qualified pitchers, <span id="hd"></span> shadow zone called decisions.</p>
+  <div id="year-selector" style="display:flex;gap:2px;margin-top:8px;background:var(--bg2);border-radius:8px;padding:2px;width:fit-content;">
+   <button class="yr-btn" data-yr="2021" onclick="switchYear(2021)">2021</button>
+   <button class="yr-btn" data-yr="2022" onclick="switchYear(2022)">2022</button>
+   <button class="yr-btn" data-yr="2023" onclick="switchYear(2023)">2023</button>
+   <button class="yr-btn" data-yr="2024" onclick="switchYear(2024)">2024</button>
+   <button class="yr-btn active" data-yr="2025" onclick="switchYear(2025)">2025</button>
+  </div>
+ </div>
+
+ <!-- Glossary Popup -->
+ <div id="glossary-overlay" class="glossary-overlay hidden" onclick="toggleGlossary()"></div>
+ <div id="glossary-popup" class="glossary-popup hidden">
+  <button class="glossary-close" onclick="toggleGlossary()">×</button>
+  <h3>Glossary</h3>
+  <dl>
+   <dt>FB</dt><dd>Fastball (4-seam, 2-seam, sinker, cutter)</dd>
+   <dt>BRK</dt><dd>Breaking ball (curveball, slider, sweeper)</dd>
+   <dt>OS</dt><dd>Offspeed (changeup, splitter)</dd>
+   <dt>CS</dt><dd>Called Strike — pitch taken for a strike</dd>
+   <dt>CS Rate</dt><dd>Called strike rate in the shadow zone</dd>
+   <dt>USS</dt><dd>Umpire Stolen Strike — strike called outside the true zone, uncontested (below challenge EV threshold)</dd>
+   <dt>ULS</dt><dd>Umpire Lost Strike — ball called inside the true zone, uncontested (below challenge EV threshold)</dd>
+   <dt>Net ABS</dt><dd>ULS runs − USS runs. Positive = benefits from ABS, negative = hurt by ABS</dd>
+   <dt>Contested</dt><dd>Pitches where challenging has positive EV — would likely be overturned under ABS</dd>
+   <dt>Shadow Zone</dt><dd>Edge of the strike zone (≤3 inches from border) where umpire calls vary most</dd>
+   <dt>pp</dt><dd>Percentage points (e.g., +3.2pp = 3.2% above average)</dd>
+   <dt>LHP/RHP</dt><dd>Left/right-handed pitcher</dd>
+   <dt>LHB/RHB</dt><dd>Left/right-handed batter</dd>
+   <dt>Edge</dt><dd>Inside, outside, top, or bottom of strike zone</dd>
+  </dl>
+ </div>
+
+ <div class="content">
+  <div class="stats" id="stats"></div>
+
+  <!-- Methodology Section -->
+  <div class="methodology" id="methodology">
+   <button class="methodology-toggle" onclick="document.getElementById('methodology').classList.toggle('open')">
+    <span>About This Data & Methodology</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+   </button>
+   <div class="methodology-content">
+    <h4>Key Definitions</h4>
+    <dl style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px;margin-bottom:16px;">
+     <dt style="font-family:var(--mono);font-weight:600;color:var(--accent);">USS</dt>
+     <dd><strong>Umpire Stolen Strike</strong> — A pitch outside the true zone that was called a strike, where the challenge EV is negative (offense wouldn't challenge). This is framing value that "survives" ABS.</dd>
+     <dt style="font-family:var(--mono);font-weight:600;color:var(--accent);">ULS</dt>
+     <dd><strong>Umpire Lost Strike</strong> — A pitch inside the true zone that was called a ball, where the challenge EV is negative (defense wouldn't challenge). This is value the defense loses to umpire error.</dd>
+     <dt style="font-family:var(--mono);font-weight:600;color:var(--accent);">Net ABS</dt>
+     <dd><strong>ULS Runs − USS Runs</strong>. Positive = benefits from ABS (recovers more than loses). Negative = hurt by ABS (elite framers whose stolen strikes exceed their lost strikes).</dd>
+     <dt style="font-family:var(--mono);font-weight:600;color:var(--accent);">Contested</dt>
+     <dd>Pitches where challenging has positive expected value. Under ABS, these would likely be overturned — they don't contribute to USS/ULS.</dd>
+    </dl>
+
+    <h4>Shadow Zone Definition</h4>
+    <p>The shadow zone is defined as the 2-inch border around the rulebook strike zone — the area where umpire calls are most variable. This is where framing, pitch movement, and sequencing have the greatest impact on called strike probability.</p>
+    
+    <h4>Umpire Stolen Strikes (USS)</h4>
+    <p>USS measures strikes called on pitches that were actually <strong>outside</strong> the true zone — value the offense loses. Not all stolen strikes are equal — we weight them by game state using RE288 (run expectancy by count and base-out state).</p>
+    <div class="formula">USS Runs = Σ (uncontested_stolen_strike × RE288_delta_for_that_count)</div>
+    <p>A stolen strike on 3-2 with bases loaded is worth far more than one on 0-0 with nobody on.</p>
+    
+    <h4>Umpire Lost Strikes (ULS)</h4>
+    <p>ULS measures balls called on pitches that were actually <strong>inside</strong> the true zone — value the defense can recover by challenging. This is the mirror of USS.</p>
+    <div class="formula">ULS Runs = Σ (uncontested_lost_strike × RE288_delta_for_that_count)</div>
+    <p>Under ABS, the defense can challenge these missed calls and recover the strike. ULS represents the recovery potential.</p>
+
+    <h4>Net ABS Impact</h4>
+    <p>The true ABS impact combines both sides:</p>
+    <div class="formula">Net ABS = ULS Runs − USS Runs</div>
+    <ul>
+     <li><strong>Positive Net ABS</strong> → Benefits from ABS (recovers more lost strikes than loses stolen strikes)</li>
+     <li><strong>Negative Net ABS</strong> → Hurt by ABS (loses more stolen strikes than recovers)</li>
+    </ul>
+    <p>League-wide, the defense benefits: pitchers are getting squeezed (balls called on strikes) more often than they're stealing strikes. Only elite framers have negative Net ABS.</p>
+
+    <div class="insight">
+     <strong>Strategic Implication:</strong> The aggregate data showing defense benefits from ABS does <em>not</em> mean framing is dead — it means framing must become <em>strategic</em>. If game-planned intentionally, stealing strikes can still be a significant competitive advantage. The key is concentrating framing effort where USS survives:
+     <ul style="margin:8px 0 0 16px;">
+      <li><strong>Target low-confidence locations</strong> — pitches 1.5-2.5" off the zone where Hawkeye confidence is lowest</li>
+      <li><strong>Exploit early counts</strong> — 0-0, 0-1, 1-0 counts where challenge EV is often negative for the offense</li>
+      <li><strong>Sequence into steals</strong> — use pitch sequencing (e.g., breaking ball → fastball) to set up edge perception</li>
+      <li><strong>Avoid high-leverage traps</strong> — don't waste framing effort on 3-2 counts where every borderline call will be challenged</li>
+     </ul>
+     <p style="margin-top:8px;">The catchers with negative Net ABS (Kirk, Bailey, Hedges) aren't "bad" — they're elite framers whose skill becomes contestable. Under ABS, the goal shifts from maximizing stolen strikes to maximizing <em>uncontested</em> stolen strikes.</p>
+    </div>
+    
+    <h4>Contested vs. Uncontested</h4>
+    <p>Under the ABS challenge system, teams have limited challenges. We use <strong>Tango's challenge threshold</strong> to classify pitches:</p>
+    <ul>
+     <li><strong>Uncontested (USS/ULS)</strong> — Pitches where the expected value of challenging is negative. These "survive" ABS because no rational team would spend a challenge on them.</li>
+     <li><strong>Contested</strong> — Pitches where challenging has positive EV. Under ABS, these would likely be overturned.</li>
+    </ul>
+    <p>The threshold varies by count and game state. A borderline pitch on 3-2 is always worth challenging; the same location on 0-1 often isn't.</p>
+    
+    <h4>Sequence Effects</h4>
+    <p>Pitch sequencing affects umpire perception. We categorize pitches into three buckets:</p>
+    <ul>
+     <li><strong>FB</strong> — Fastballs (4-seam, 2-seam, sinker, cutter)</li>
+     <li><strong>BRK</strong> — Breaking balls (curveball, slider, sweeper)</li>
+     <li><strong>OS</strong> — Offspeed (changeup, splitter)</li>
+    </ul>
+    <p>A fastball following a breaking ball gets called differently than a fastball following another fastball. This data quantifies that effect.</p>
+    
+    <h4>Platoon Edges</h4>
+    <p>Inside/outside edge interpretation varies by batter-pitcher handedness matchup. The "inside" edge to a RHB facing a RHP is the pitcher's arm side — different visual geometry than LHP vs RHB.</p>
+    
+    <h4>Data Source & Qualifications</h4>
+    <p>Built from Statcast pitch-level data. Pitcher qualification: 50+ shadow zone called decisions. Catcher qualification: 100+ shadow zone called decisions. Battery pairs require 30+ decisions together.</p>
+    
+    <p class="cite">Methodology draws on work by Tom Tango (challenge EV framework), Baseball Savant (zone probability models), and RE288 run expectancy tables.</p>
+   </div>
+  </div>
+
+  <div class="tabs" id="tb">
+   <button class="tab active" data-tab="overview">Overview</button>
+   <button class="tab" data-tab="platoon">Platoon Splits</button>
+   <button class="tab" data-tab="pitchers">Pitcher Profiles</button>
+   <button class="tab" data-tab="team">Team View</button>
+   <button class="tab" data-tab="catchers">Catchers</button>
+   <button class="tab" data-tab="scout">Scouting Card</button>
+   <button class="tab" data-tab="playerdev">Player Dev</button>
+   <button class="tab" data-tab="frontoffice">Front Office</button>
+   <button class="tab" data-tab="absvalue">ABS Value</button>
+  </div>
+
+  <!-- ── OVERVIEW ── -->
+  <div id="tab-overview" class="tp">
+   <div class="grid grid-2">
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> CS Rate by Sequence Category</div>
+     <div class="panel-desc">Called strike rate based on what pitch type preceded the current pitch.</div>
+     <div id="ov-bars"></div>
+     <div class="note" id="ov-note"></div>
+    </div>
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Sequence Pair Rates</div>
+     <div class="panel-desc">Specific prev→current pitch category CS rates across the league.</div>
+     <div id="ov-tbl"></div>
+    </div>
+   </div>
+   <div class="panel" style="margin-top:16px;">
+    <div class="panel-head"><span class="dot" style="background:var(--green)"></span> League ABS Impact Summary</div>
+    <div class="panel-desc">Net effect of the ABS challenge system on shadow zone calls.</div>
+    <div id="ov-abs-summary"></div>
+   </div>
+   <div class="grid grid-2" style="margin-top:16px;">
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catchers Most Hurt by ABS</div>
+     <div class="panel-desc">Negative Net ABS = loses more stolen strikes than recovers lost strikes.</div>
+     <div id="ov-catcher-hurt"></div>
+    </div>
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Catchers Most Helped by ABS</div>
+     <div class="panel-desc">Positive Net ABS = recovers more lost strikes than loses stolen strikes.</div>
+     <div id="ov-catcher-help"></div>
+    </div>
+   </div>
+  </div>
+
+  <!-- ── PLATOON ── -->
+  <div id="tab-platoon" class="tp hidden">
+   <div class="controls" style="margin-bottom:12px;">
+    <select id="pl-team" onchange="setPLTeam(this.value)"><option value="LEAGUE">League Average</option></select>
+    <span id="pl-team-label" style="font-family:var(--mono);font-size:11px;color:var(--text3);"></span>
+   </div>
+   <div class="mu-tabs" id="mu"></div>
+   <div class="grid grid-2">
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Edge CS Rate Map</div>
+     <div class="panel-desc">Called strike rate by zone edge. Higher = more umpire strikes at that edge.</div>
+     <div style="display:flex;justify-content:center;padding:16px 0;">
+      <div class="edge-map">
+       <div class="sz-outline" style="left:36px;top:26px;width:148px;height:208px;"></div>
+       <div class="edge-zone" id="ez-top" style="left:54px;top:0;width:112px;height:40px;"></div>
+       <div class="edge-zone" id="ez-bot" style="left:54px;top:220px;width:112px;height:40px;"></div>
+       <div class="edge-zone" id="ez-in" style="left:0;top:72px;width:50px;height:116px;"></div>
+       <div class="edge-zone" id="ez-out" style="left:170px;top:72px;width:50px;height:116px;"></div>
+       <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:9px;color:var(--text3);text-align:center;letter-spacing:1px;">STRIKE<br>ZONE</div>
+      </div>
+     </div>
+    </div>
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Edge Vulnerability</div>
+     <div class="panel-desc">Which edges are most/least protected in this matchup.</div>
+     <div id="pl-bars"></div>
+     <div class="note" id="pl-note"></div>
+    </div>
+   </div>
+   <div class="panel" style="margin-top:16px;">
+    <div class="panel-head"><span class="dot" style="background:var(--orange)"></span> All Matchup Comparison</div>
+    <div id="pl-cmp"></div>
+   </div>
+  </div>
+
+  <!-- ── PITCHER PROFILES ── -->
+  <div id="tab-pitchers" class="tp hidden">
+   <div class="controls">
+    <select id="p-team" onchange="filt()"><option value="ALL">All Teams</option></select>
+    <input class="search" id="p-srch" type="text" placeholder="Search pitcher…" oninput="filt()">
+    <button class="export-btn" onclick="exportCurrentPitcher()" title="Export current pitcher profile">
+     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+     Export Profile
+    </button>
+   </div>
+   <div class="chips" id="p-chips"></div>
+   <div id="p-card"></div>
+   <div class="grid grid-2">
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Sequence Profile</div>
+     <div class="panel-desc">Shadow zone CS rate by pitch sequencing.</div>
+     <div id="p-seq"></div>
+    </div>
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Platoon Edge Profile</div>
+     <div class="panel-desc">Called strike rate by edge and batter handedness.</div>
+     <div id="p-plat"></div>
+    </div>
+   </div>
+   <div class="panel" style="margin-top:16px;">
+    <div class="panel-head"><span class="dot" style="background:var(--orange)"></span> Catcher Battery Splits</div>
+    <div class="panel-desc">How this pitcher's shadow zone CS rate changes by catcher (min 30 decisions).</div>
+    <div id="p-catchers"></div>
+   </div>
+   <div class="panel" style="margin-top:16px;">
+    <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Scouting Note</div>
+    <div class="note" id="p-note"></div>
+   </div>
+   <div id="p-abs"></div>
+  </div>
+
+  <!-- ── TEAM VIEW ── -->
+  <div id="tab-team" class="tp hidden">
+   <div class="controls">
+    <select id="t-sel" onchange="teamView()"><option value="">Select a team…</option></select>
+   </div>
+   <div id="t-body"></div>
+  </div>
+
+  <!-- ── CATCHERS ── -->
+  <div id="tab-catchers" class="tp hidden">
+   <div class="controls">
+    <select id="c-team" onchange="filtC()"><option value="ALL">All Teams</option></select>
+    <input class="search" id="c-srch" type="text" placeholder="Search catcher…" oninput="filtC()">
+    <button class="export-btn" onclick="exportCurrentCatcher()" title="Export current catcher profile">
+     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+     Export Profile
+    </button>
+   </div>
+   <div id="c-rank"></div>
+   <div id="c-detail" class="hidden">
+    <div id="c-card"></div>
+    <div class="grid grid-2">
+     <div class="panel">
+      <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Edge Profile</div>
+      <div class="panel-desc">Called strike rate by shadow zone edge for this catcher.</div>
+      <div id="c-edges"></div>
+     </div>
+     <div class="panel">
+      <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Pitcher Battery Splits</div>
+      <div class="panel-desc">How this catcher's CS rate varies by pitcher (min 30 decisions).</div>
+      <div id="c-pairs"></div>
+     </div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+     <div class="panel-head"><span class="dot" style="background:var(--orange)"></span> Savant Framing</div>
+     <div class="panel-desc">Run values and CS% by shadow zone region (Baseball Savant catcher framing).</div>
+     <div id="c-framing"></div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+     <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Framing Note</div>
+     <div class="note" id="c-note"></div>
+    </div>
+    <div id="c-abs"></div>
+   </div>
+  </div>
+
+  <!-- ── SCOUTING CARD ── -->
+  <div id="tab-scout" class="tp hidden">
+   <div class="scout-print-header" id="scout-print-head">
+    <h2 id="scout-print-title"></h2>
+    <p id="scout-print-sub"></p>
+   </div>
+   <div class="controls">
+    <select id="sc-team" onchange="buildScoutCards()"><option value="">Select opponent…</option></select>
+    <button class="btn-print" onclick="printScoutCards()">Print Scouting Card</button>
+   </div>
+   <div id="sc-body"></div>
+  </div>
+
+  <!-- ── PLAYER DEV ── -->
+  <div id="tab-playerdev" class="tp hidden">
+   <div class="controls">
+    <select id="pd-team" onchange="filtPD()"><option value="ALL">All Teams</option></select>
+    <select id="pd-catcher" onchange="buildPDReport()"><option value="">Select catcher…</option></select>
+   </div>
+   <div id="pd-body"></div>
+  </div>
+
+  <!-- ── FRONT OFFICE ── -->
+  <div id="tab-frontoffice" class="tp hidden">
+   <div class="controls">
+    <button class="fo-add-btn" id="fo-compare-btn" onclick="toggleFOCompare()">Compare Selected</button>
+    <button class="fo-add-btn" onclick="clearFOCompare()" style="color:var(--text2);background:var(--bg2);">Clear</button>
+   </div>
+   <div id="fo-leaderboard"></div>
+   <div id="fo-compare" class="hidden"></div>
+  </div>
+
+  <!-- ── ABS VALUE ── -->
+  <div id="tab-absvalue" class="tp hidden">
+   <div class="controls" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <div>
+     <label style="font-size:11px;color:var(--text2);font-weight:600;">TEAM</label><br>
+     <select id="av-team" onchange="buildABSValue()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;"></select>
+    </div>
+    <div>
+     <label style="font-size:11px;color:var(--text2);font-weight:600;">PITCHER</label><br>
+     <select id="av-pitcher" onchange="buildABSValue()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;"></select>
+    </div>
+    <div style="margin-left:auto;text-align:right;">
+     <div id="av-total" style="font-size:22px;font-weight:700;"></div>
+     <div style="font-size:9px;color:var(--text2);">Shadow Zone CS</div>
+    </div>
+   </div>
+   <div id="av-body"></div>
+  </div>
+
+ </div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+let D,curP,curC,curMU='LHP_vs_RHB';
+var pcpNorm={};
+var pitcherToCatchers={};
+var foSelected=new Set();
+var foSortCol='net_abs',foSortDir='desc';
+var cSortCol='net_abs',cSortDir='desc';
+
+function toggleGlossary(){
+ document.getElementById('glossary-overlay').classList.toggle('hidden');
+ document.getElementById('glossary-popup').classList.toggle('hidden');
+}
+
+function exportCSV(data, filename){
+ if(!data || !data.length) return;
+ const headers = Object.keys(data[0]);
+ const csvRows = [headers.join(',')];
+ data.forEach(row => {
+  const values = headers.map(h => {
+   let val = row[h];
+   if(val === null || val === undefined) val = '';
+   if(typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))){
+    val = '"' + val.replace(/"/g, '""') + '"';
+   }
+   return val;
+  });
+  csvRows.push(values.join(','));
+ });
+ const blob = new Blob([csvRows.join('\n')], {type: 'text/csv'});
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href = url;
+ a.download = filename + '.csv';
+ a.click();
+ URL.revokeObjectURL(url);
+}
+
+function exportPitchers(){
+ const avg = D.summary.overall_cs_rate;
+ const data = Object.entries(D.pitcherMeta).map(([name, m]) => ({
+  name: name,
+  team: m.team,
+  hand: m.hand,
+  shadow_decisions: m.shadow_decisions,
+  cs_rate: (m.cs_rate * 100).toFixed(1) + '%',
+  vs_avg_pp: ((m.cs_rate - avg) * 100).toFixed(1),
+  uss_runs: (m.uss_runs || 0).toFixed(2),
+  uls_runs: (m.uls_runs || 0).toFixed(2),
+  net_abs: (m.net_abs || 0).toFixed(2)
+ }));
+ data.sort((a,b) => parseFloat(b.net_abs) - parseFloat(a.net_abs));
+ exportCSV(data, 'shadow_zone_pitchers_' + D.summary.season);
+}
+
+function exportCatchers(){
+ if(!D.catcherMeta) return;
+ const avg = D.summary.overall_cs_rate;
+ const data = Object.entries(D.catcherMeta).map(([name, m]) => ({
+  name: name,
+  team: m.team,
+  shadow_decisions: m.shadow_decisions,
+  cs_rate: (m.cs_rate * 100).toFixed(1) + '%',
+  vs_avg_pp: ((m.cs_rate - avg) * 100).toFixed(1),
+  stolen_strikes: m.stolen_strikes || 0,
+  uss_runs: (m.uss_runs || 0).toFixed(2),
+  lost_strikes: m.lost_strikes || 0,
+  uls_runs: (m.uls_runs || 0).toFixed(2),
+  net_abs: (m.net_abs || 0).toFixed(2)
+ }));
+ data.sort((a,b) => parseFloat(b.net_abs) - parseFloat(a.net_abs));
+ exportCSV(data, 'shadow_zone_catchers_' + D.summary.season);
+}
+
+function exportTeamABS(){
+ if(!D.teamNetABS) return;
+ const data = Object.entries(D.teamNetABS).map(([team, t]) => ({
+  team: team,
+  uss_runs: t.uss_runs.toFixed(2),
+  uls_runs: t.uls_runs.toFixed(2),
+  net_abs: t.net_abs.toFixed(2)
+ }));
+ data.sort((a,b) => parseFloat(b.net_abs) - parseFloat(a.net_abs));
+ exportCSV(data, 'shadow_zone_team_abs_' + D.summary.season);
+}
+
+function exportCurrentPitcher(){
+ if(!curP) return;
+ const m = D.pitcherMeta[curP];
+ const seqs = D.pitcherSequences[curP] || [];
+ const plat = D.pitcherPlatoon[curP] || [];
+ const data = [];
+ 
+ seqs.forEach(s => {
+  data.push({
+   pitcher: curP,
+   type: 'sequence',
+   detail: s.seq,
+   cs_rate: (s.rate * 100).toFixed(1) + '%',
+   n: s.n
+  });
+ });
+ 
+ plat.forEach(p => {
+  data.push({
+   pitcher: curP,
+   type: 'platoon',
+   detail: p.matchup + ' / ' + p.edge,
+   cs_rate: (p.rate * 100).toFixed(1) + '%',
+   n: p.n
+  });
+ });
+ 
+ exportCSV(data, 'pitcher_profile_' + curP.replace(/[^a-z0-9]/gi, '_'));
+}
+
+function exportCurrentCatcher(){
+ if(!curC || !D.catcherMeta) return;
+ const m = D.catcherMeta[curC];
+ const edges = D.catcherPlatoon ? D.catcherPlatoon[curC] : [];
+ const pairs = D.pitcherCatcherPairs ? D.pitcherCatcherPairs[curC] : [];
+ const data = [];
+ 
+ if(edges) edges.forEach(e => {
+  data.push({
+   catcher: curC,
+   type: 'edge',
+   detail: e.edge,
+   cs_rate: (e.rate * 100).toFixed(1) + '%',
+   n: e.n,
+   uss_runs: e.uss_runs ? e.uss_runs.toFixed(2) : '',
+   uls_runs: e.uls_runs ? e.uls_runs.toFixed(2) : '',
+   net_abs: e.net_abs ? e.net_abs.toFixed(2) : ''
+  });
+ });
+ 
+ if(pairs) pairs.forEach(p => {
+  data.push({
+   catcher: curC,
+   type: 'battery',
+   detail: p.pitcher,
+   cs_rate: (p.rate * 100).toFixed(1) + '%',
+   n: p.n,
+   uss_runs: p.uss_runs ? p.uss_runs.toFixed(2) : ''
+  });
+ });
+ 
+ exportCSV(data, 'catcher_profile_' + curC.replace(/[^a-z0-9]/gi, '_'));
+}
+
+function calcABSImpact(meta){
+ const ussRuns = meta.uss_runs || 0;
+ const ulsRuns = meta.uls_runs || 0;
+ const netAbs = meta.net_abs || (ulsRuns - ussRuns);
+ const stolenStrikes = meta.stolen_strikes || 0;
+ const lostStrikes = meta.lost_strikes || 0;
+ const uss = meta.uss || 0;
+ const uls = meta.uls || 0;
+ const contested = meta.contested || 0;
+ const lostContested = meta.lost_contested || 0;
+ 
+ return {
+  ussRuns: ussRuns,
+  ulsRuns: ulsRuns,
+  netAbs: netAbs,
+  stolenStrikes: stolenStrikes,
+  lostStrikes: lostStrikes,
+  uss: uss,
+  uls: uls,
+  contested: contested,
+  lostContested: lostContested
+ };
+}
+
+function renderABSProjection(impact, entityType){
+ if(impact.stolenStrikes === 0 && impact.lostStrikes === 0) return '';
+ 
+ const netClass = impact.netAbs > 0.5 ? 'net-pos' : impact.netAbs < -0.5 ? 'net-neg' : '';
+ const entityLabel = entityType === 'pitcher' ? 'pitcher' : 'catcher';
+ 
+ let summary = '';
+ if(impact.netAbs > 3){
+  summary = '<strong>Strong ABS beneficiary.</strong> This ' + entityLabel + ' gains ' + impact.netAbs.toFixed(1) + ' runs under ABS — recovers ' + impact.ulsRuns.toFixed(1) + ' runs from lost strikes while only losing ' + impact.ussRuns.toFixed(1) + ' runs from stolen strikes being challenged.';
+ } else if(impact.netAbs > 0.5){
+  summary = '<strong>Modest ABS beneficiary.</strong> Net gain of ' + impact.netAbs.toFixed(1) + ' runs. ULS recovery (' + impact.ulsRuns.toFixed(1) + ') exceeds USS loss (' + impact.ussRuns.toFixed(1) + ').';
+ } else if(impact.netAbs > -0.5){
+  summary = '<strong>ABS-neutral.</strong> Net impact of ' + impact.netAbs.toFixed(1) + ' runs — approximately balanced between stolen and lost strike effects.';
+ } else if(impact.netAbs > -3){
+  summary = '<strong>Modest ABS exposure.</strong> Net loss of ' + Math.abs(impact.netAbs).toFixed(1) + ' runs. USS loss (' + impact.ussRuns.toFixed(1) + ') exceeds ULS recovery (' + impact.ulsRuns.toFixed(1) + ').';
+ } else {
+  summary = '<strong>High ABS exposure.</strong> This ' + entityLabel + ' loses ' + Math.abs(impact.netAbs).toFixed(1) + ' runs under ABS — elite framing skill becomes less valuable. Consider strategic framing focus on low-leverage counts where challenges are less likely.';
+ }
+ 
+ return '<div class="abs-projection">' +
+  '<div class="abs-projection-header"><span class="abs-badge">ABS 2026</span><span>Challenge System Impact Projection</span></div>' +
+  '<div class="abs-grid">' +
+  '<div class="abs-stat loss"><div class="abs-label">USS Runs Lost</div><div class="abs-value">−' + impact.ussRuns.toFixed(1) + '</div><div class="abs-sub">' + impact.stolenStrikes + ' stolen strikes</div></div>' +
+  '<div class="abs-stat gain"><div class="abs-label">ULS Runs Recovered</div><div class="abs-value">+' + impact.ulsRuns.toFixed(1) + '</div><div class="abs-sub">' + impact.lostStrikes + ' lost strikes</div></div>' +
+  '<div class="abs-stat ' + netClass + '"><div class="abs-label">Net ABS Impact</div><div class="abs-value">' + (impact.netAbs >= 0 ? '+' : '') + impact.netAbs.toFixed(1) + '</div><div class="abs-sub">' + (impact.netAbs >= 0 ? 'benefits' : 'hurt by') + ' ABS</div></div>' +
+  '<div class="abs-stat"><div class="abs-label">Contestable</div><div class="abs-value">' + (impact.contested + impact.lostContested) + '</div><div class="abs-sub">' + impact.contested + ' USS / ' + impact.lostContested + ' ULS</div></div>' +
+  '</div>' +
+  '<div class="abs-summary">' + summary + '</div>' +
+  '</div>';
+}
+
+function netAbsBadge(netAbs){
+ const cls = netAbs > 0.5 ? 'positive' : netAbs < -0.5 ? 'negative' : 'neutral';
+ const sign = netAbs >= 0 ? '+' : '';
+ return '<span class="net-abs-badge ' + cls + '">' + sign + netAbs.toFixed(1) + '</span>';
+}
+
+var currentYear=2025;
+
+async function loadYear(year){
+ for(const base of ['./shadow-zone/','./']){
+  try{
+   const r=await fetch(base+'shadow_zone_'+year+'_full.json');
+   if(r.ok) return await r.json();
+  }catch(e){}
+ }
+ throw new Error('Could not find shadow_zone_'+year+'_full.json');
+}
+
+async function switchYear(year){
+ if(year===currentYear) return;
+ currentYear=year;
+ document.querySelectorAll('.yr-btn').forEach(b=>{
+  b.classList.toggle('active',parseInt(b.dataset.yr)===year);
+ });
+ document.getElementById('tag').textContent='Loading...';
+ try{
+  D=await loadYear(year);
+  pcpNorm={};
+  pitcherToCatchers={};
+  foSelected=new Set();
+  curP=undefined;
+  curC=undefined;
+  boot();
+ }catch(e){
+  document.getElementById('tag').textContent='Error';
+  alert('Failed to load '+year+' data: '+e.message);
+ }
+}
+
+(async()=>{
+ try{
+  D=await loadYear(2025);
+  boot();
+ }catch(e){
+  document.getElementById('load').innerHTML='<div style="color:var(--accent)">Failed: '+e.message+'</div><div style="color:var(--text3);font-size:12px;margin-top:6px">Ensure shadow_zone_2025_full.json is in the same directory.</div>';
+ }
+})();
+
+function boot(){
+ document.addEventListener('click', function(e){
+  const menu = document.getElementById('export-menu');
+  const btn = e.target.closest('.export-btn');
+  if(!menu.contains(e.target) && !btn) menu.classList.add('hidden');
+ });
+
+ if(D.pitcherCatcherPairs && D.catcherMeta){
+  const metaLower={};
+  Object.keys(D.catcherMeta).forEach(n=>{ metaLower[n.toLowerCase()]=n; });
+  const rawPCP=D.pitcherCatcherPairs;
+  D.pitcherCatcherPairs={};
+  Object.entries(rawPCP).forEach(([k,v])=>{
+   const proper=metaLower[k]||k;
+   D.pitcherCatcherPairs[proper]=v;
+  });
+ }
+
+ if(D.pitcherCatcherPairs){
+  Object.entries(D.pitcherCatcherPairs).forEach(([catcher,pitchers])=>{
+   pitchers.forEach(p=>{
+    if(!pitcherToCatchers[p.pitcher]) pitcherToCatchers[p.pitcher]=[];
+    pitcherToCatchers[p.pitcher].push({catcher:catcher, rate:p.rate, n:p.n});
+   });
+  });
+  Object.values(pitcherToCatchers).forEach(arr=>arr.sort((a,b)=>b.n-a.n));
+ }
+
+ document.getElementById('load').classList.add('hidden');
+ document.getElementById('app').classList.remove('hidden');
+
+ const s=D.summary;
+ document.getElementById('tag').textContent=s.season;
+ document.getElementById('hc').textContent=s.qualified_pitchers;
+ document.getElementById('hd').textContent=s.total_shadow_called.toLocaleString();
+
+ const netAbsTotal = s.net_abs_runs || ((s.uls_runs_total||0) - (s.uss_runs_total||0));
+ const netAbsCol = netAbsTotal > 0 ? 'var(--green)' : 'var(--neg)';
+
+ document.getElementById('stats').innerHTML=[
+  st('Pitches',s.total_pitches.toLocaleString(),s.qualified_pitchers+' pitchers'),
+  st('Shadow Zone',s.total_shadow.toLocaleString(),s.shadow_pct+'% of all'),
+  st('Called Decisions',s.total_shadow_called.toLocaleString(),'shadow takes'),
+  st('CS Rate',pc(s.overall_cs_rate),'league avg'),
+  st('USS Runs','<span style="color:var(--neg)">−'+(s.uss_runs_total||0).toFixed(0)+'</span>',((s.stolen_strikes_total||0).toLocaleString())+' stolen'),
+  st('ULS Runs','<span style="color:var(--green)">+'+(s.uls_runs_total||0).toFixed(0)+'</span>',((s.lost_strikes_total||0).toLocaleString())+' lost'),
+  st('Net ABS','<span style="color:'+netAbsCol+'">'+(netAbsTotal>=0?'+':'')+netAbsTotal.toFixed(0)+'</span>','runs to defense'),
+ ].join('');
+
+ document.querySelectorAll('#tb .tab').forEach(b=>{
+  b.onclick=()=>{
+   document.querySelectorAll('#tb .tab').forEach(t=>t.classList.remove('active'));
+   document.querySelectorAll('.tp').forEach(t=>t.classList.add('hidden'));
+   b.classList.add('active');
+   document.getElementById('tab-'+b.dataset.tab).classList.remove('hidden');
+  };
+ });
+
+ const teams=[...new Set(Object.values(D.pitcherMeta).map(m=>m.team))].sort();
+ ['p-team','t-sel'].forEach(id=>{
+  const el=document.getElementById(id);
+  const f=id==='p-team'?'<option value="ALL">All Teams</option>':'<option value="">Select a team…</option>';
+  el.innerHTML=f+teams.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+ });
+
+ if(D.catcherMeta){
+  const cTeams=[...new Set(Object.values(D.catcherMeta).map(m=>m.team))].sort();
+  ['c-team','pd-team'].forEach(id=>{
+   const el=document.getElementById(id);
+   if(el) el.innerHTML='<option value="ALL">All Teams</option>'+cTeams.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+  });
+ }
+
+ const allTeams=[...new Set([
+  ...Object.values(D.pitcherMeta).map(m=>m.team),
+  ...(D.catcherMeta?Object.values(D.catcherMeta).map(m=>m.team):[])
+ ])].sort();
+ const scEl=document.getElementById('sc-team');
+ scEl.innerHTML='<option value="">Select opponent…</option>'+allTeams.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+
+ document.getElementById('mu').innerHTML=
+  ['LHP_vs_RHB','LHP_vs_LHB','RHP_vs_RHB','RHP_vs_LHB'].map((m,i)=>
+   '<button class="mu-btn'+(i===0?' on':'')+'" onclick="setMU(\''+m+'\',this)">'+m.replace(/_/g,' ')+'</button>'
+  ).join('');
+
+ if(D.teamMatchupEdges){
+  const plTeams=Object.keys(D.teamMatchupEdges).sort();
+  const plEl=document.getElementById('pl-team');
+  plEl.innerHTML='<option value="LEAGUE">League Average</option>'+plTeams.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+ }
+
+ buildOV();
+ setMU('LHP_vs_RHB',document.querySelector('.mu-btn'));
+ buildCmp();
+ filt();
+ filtC();
+ filtPD();
+ buildFOLeaderboard();
+ initABSValue();
+}
+
+function st(l,v,s){
+ return '<div class="stat"><div class="label">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+s+'</div></div>';
+}
+function pc(v){ return (v*100).toFixed(1)+'%'; }
+
+function br(label,rate,color,n){
+ const w=Math.max(rate*180,8);
+ return '<div class="bar-row"><div class="bar-lbl">'+label+'</div><div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+color+'"><span class="bar-val">'+pc(rate)+'</span></div></div>'+(n!=null?'<div class="bar-n">n='+n.toLocaleString()+'</div>':'')+'</div>';
+}
+function shortN(n){const p=n.split(', ');return p.length===2?p[1]+' '+p[0]:n;}
+
+function buildZoneGrid(zones,align){
+ const order=['top_left','top_mid','top_right','mid_left','mid_right','bot_left','bot_mid','bot_right'];
+ const labels={top_left:'Top L',top_mid:'Top',top_right:'Top R',mid_left:'Left',mid_right:'Right',bot_left:'Bot L',bot_mid:'Bottom',bot_right:'Bot R'};
+ const ml=align==='left'?'margin:0':'';
+ let g='<div class="zone-grid"'+(ml?' style="'+ml+'"':'')+'>';
+ order.forEach((z,i)=>{
+  if(i===4) g+='<div class="zone-cell" style="border:1px dashed var(--border);display:flex;align-items:center;justify-content:center"><span style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px">ZONE</span></div>';
+  const zd=zones[z];
+  if(!zd){g+='<div class="zone-cell"></div>';return;}
+  const rc=zd.rv>=1?'var(--green)':zd.rv<=-1?'var(--neg)':'var(--text2)';
+  const zbg=zd.rv>=1?'var(--green-bg)':zd.rv<=-1?'var(--neg-bg)':'var(--bg2)';
+  g+='<div class="zone-cell" style="background:'+zbg+'"><div class="zn">'+labels[z]+'</div><div class="zv" style="color:'+rc+'">'+zd.rv.toFixed(0)+'</div><div class="zp">'+pc(zd.pct)+'</div></div>';
+ });
+ g+='</div>';
+ return g;
+}
+function esc(s){return s.replace(/'/g,"\\'");}
+
+function getUSS(name){
+ const m=D.catcherMeta[name];
+ if(!m) return {uss_runs:0,uls_runs:0,net_abs:0,stolen_strikes:0,lost_strikes:0,uss:0,uls:0};
+ return {
+  uss_runs: m.uss_runs||0,
+  uls_runs: m.uls_runs||0,
+  net_abs: m.net_abs||0,
+  stolen_strikes: m.stolen_strikes||0,
+  lost_strikes: m.lost_strikes||0,
+  uss: m.uss||0,
+  uls: m.uls||0
+ };
+}
+
+function buildOV(){
+ const s=D.summary;
+ document.getElementById('ov-bars').innerHTML='<div class="bars">'+
+  [{l:'First Pitch',r:s.first_pitch_cs_rate,c:'var(--accent)'},{l:'Diff Category',r:s.diff_cat_cs_rate,c:'var(--blue)'},{l:'Same Category',r:s.same_cat_cs_rate,c:'var(--text3)'}]
+  .map(c=>br(c.l,c.r,c.c)).join('')+'</div>';
+
+ document.getElementById('ov-note').innerHTML='<strong>First pitches get more strikes.</strong> Umpires call shadow zone first pitches as strikes '+pc(s.first_pitch_cs_rate)+' — '+s.sequence_signal_pp+'pp higher than same-category sequences.';
+
+ const agg={};
+ for(const nm in D.pitcherSequences) D.pitcherSequences[nm].forEach(x=>{
+  if(!agg[x.seq]) agg[x.seq]={cs:0,n:0};
+  agg[x.seq].cs+=Math.round(x.rate*x.n);
+  agg[x.seq].n+=x.n;
+ });
+ const rows=Object.entries(agg).map(([seq,d])=>({seq,rate:d.cs/d.n,n:d.n})).sort((a,b)=>b.rate-a.rate);
+
+ const seqTotal=rows.reduce((a,r)=>({cs:a.cs+Math.round(r.rate*r.n),n:a.n+r.n}),{cs:0,n:0});
+ const avg=D.summary.non_first_cs_rate||(seqTotal.n>0?seqTotal.cs/seqTotal.n:D.summary.overall_cs_rate);
+
+ document.getElementById('ov-tbl').innerHTML='<table><thead><tr><th>Sequence</th><th>CS Rate</th><th>n</th><th>vs Avg</th></tr></thead><tbody>'+
+  rows.map(r=>{
+   const df=((r.rate-avg)*100).toFixed(1);
+   const c=r.rate>avg+0.015?'up':r.rate<avg-0.015?'dn':'';
+   const dc=parseFloat(df)>0?'up':parseFloat(df)<0?'dn':'';
+   return '<tr><td>'+r.seq+'</td><td class="'+c+'">'+pc(r.rate)+'</td><td>'+r.n.toLocaleString()+'</td><td class="'+dc+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td></tr>';
+  }).join('')+'</tbody></table>';
+
+ // ABS Summary
+ const ussTotal = s.uss_runs_total || 0;
+ const ulsTotal = s.uls_runs_total || 0;
+ const netTotal = s.net_abs_runs || (ulsTotal - ussTotal);
+ const stolenTotal = s.stolen_strikes_total || 0;
+ const lostTotal = s.lost_strikes_total || 0;
+ 
+ document.getElementById('ov-abs-summary').innerHTML = 
+  '<div class="abs-grid" style="max-width:600px;margin:0 auto;">' +
+  '<div class="abs-stat loss"><div class="abs-label">Stolen Strikes</div><div class="abs-value">' + stolenTotal.toLocaleString() + '</div><div class="abs-sub">−' + ussTotal.toFixed(0) + ' runs (USS)</div></div>' +
+  '<div class="abs-stat gain"><div class="abs-label">Lost Strikes</div><div class="abs-value">' + lostTotal.toLocaleString() + '</div><div class="abs-sub">+' + ulsTotal.toFixed(0) + ' runs (ULS)</div></div>' +
+  '<div class="abs-stat ' + (netTotal > 0 ? 'net-pos' : 'net-neg') + '"><div class="abs-label">Net ABS Impact</div><div class="abs-value">' + (netTotal >= 0 ? '+' : '') + netTotal.toFixed(0) + '</div><div class="abs-sub">runs to defense</div></div>' +
+  '</div>' +
+  '<div class="note" style="margin-top:16px;"><strong>Key finding:</strong> Pitchers are getting squeezed (lost strikes) more than they\'re stealing. The defense benefits from ABS league-wide by +' + netTotal.toFixed(0) + ' runs. Only elite framers (Kirk, Bailey, Hedges) have negative Net ABS — their framing skill is devalued under the challenge system.</div>';
+
+ // Catchers hurt/helped by ABS
+ if(D.catcherMeta){
+  const catchers = Object.entries(D.catcherMeta)
+   .filter(([_, m]) => (m.stolen_strikes || 0) >= 30 || (m.lost_strikes || 0) >= 30)
+   .map(([name, m]) => ({
+    name,
+    team: m.team,
+    uss_runs: m.uss_runs || 0,
+    uls_runs: m.uls_runs || 0,
+    net_abs: m.net_abs || ((m.uls_runs || 0) - (m.uss_runs || 0))
+   }));
+
+  const hurt = [...catchers].sort((a, b) => a.net_abs - b.net_abs).slice(0, 8);
+  const helped = [...catchers].sort((a, b) => b.net_abs - a.net_abs).slice(0, 8);
+
+  document.getElementById('ov-catcher-hurt').innerHTML =
+   '<table><thead><tr><th>Catcher</th><th>Team</th><th>USS</th><th>ULS</th><th>Net ABS</th></tr></thead><tbody>' +
+   hurt.map(c => {
+    const netCol = c.net_abs < -2 ? 'dn' : c.net_abs < 0 ? '' : 'up';
+    return '<tr class="clickable" onclick="jumpC(\'' + esc(c.name) + '\')"><td>' + c.name + '</td><td>' + c.team + '</td><td>−' + c.uss_runs.toFixed(1) + '</td><td>+' + c.uls_runs.toFixed(1) + '</td><td class="' + netCol + '">' + (c.net_abs >= 0 ? '+' : '') + c.net_abs.toFixed(1) + '</td></tr>';
+   }).join('') + '</tbody></table>';
+
+  document.getElementById('ov-catcher-help').innerHTML =
+   '<table><thead><tr><th>Catcher</th><th>Team</th><th>USS</th><th>ULS</th><th>Net ABS</th></tr></thead><tbody>' +
+   helped.map(c => {
+    const netCol = c.net_abs > 2 ? 'up' : c.net_abs > 0 ? '' : 'dn';
+    return '<tr class="clickable" onclick="jumpC(\'' + esc(c.name) + '\')"><td>' + c.name + '</td><td>' + c.team + '</td><td>−' + c.uss_runs.toFixed(1) + '</td><td>+' + c.uls_runs.toFixed(1) + '</td><td class="' + netCol + '">' + (c.net_abs >= 0 ? '+' : '') + c.net_abs.toFixed(1) + '</td></tr>';
+   }).join('') + '</tbody></table>';
+ }
+}
+
+var curPLTeam='LEAGUE';
+function setMU(mu,btn){
+ curMU=mu;
+ document.querySelectorAll('.mu-btn').forEach(b=>b.classList.remove('on'));
+ if(btn)btn.classList.add('on');
+
+ const team=curPLTeam||'LEAGUE';
+ const isTeam=team!=='LEAGUE';
+ const ld=D.leagueMatchupEdges[mu]||{};
+ const d=isTeam&&D.teamMatchupEdges&&D.teamMatchupEdges[team]?D.teamMatchupEdges[team][mu]||{}:ld;
+ const es=['inside','outside','top','bottom'];
+ const ids={inside:'ez-in',outside:'ez-out',top:'ez-top',bottom:'ez-bot'};
+
+ es.forEach(e=>{
+  const el=document.getElementById(ids[e]);
+  const v=d[e]; const lv=ld[e];
+  if(!v){el.innerHTML='<span style="color:var(--text3);font-size:10px">—</span>';el.style.background='';el.style.border='';return;}
+  const p=(v.rate*100).toFixed(1);
+  const col=v.rate>0.48?'var(--neg)':v.rate>0.40?'var(--orange)':'var(--green)';
+  const bg=v.rate>0.48?'var(--neg-bg)':v.rate>0.40?'var(--orange-bg)':'var(--green-bg)';
+  el.style.background=bg; el.style.border='1px solid '+col;
+  let html='<span class="r" style="color:'+col+'">'+p+'%</span>';
+  if(isTeam&&lv){
+   const diff=((v.rate-lv.rate)*100).toFixed(1);
+   const dc=parseFloat(diff)>0?'color:var(--green)':parseFloat(diff)<0?'color:var(--neg)':'color:var(--text3)';
+   html+='<span class="n" style="'+dc+';font-weight:600">'+(parseFloat(diff)>0?'+':'')+diff+'pp</span>';
+  } else {
+   html+='<span class="n">n='+v.n.toLocaleString()+'</span>';
+  }
+  el.innerHTML=html;
+ });
+
+ const sorted=es.filter(e=>d[e]).sort((a,b)=>d[b].rate-d[a].rate);
+ document.getElementById('pl-bars').innerHTML='<div class="bars">'+sorted.map(e=>{
+  const v=d[e];
+  const col=v.rate>0.48?'var(--neg)':v.rate>0.40?'var(--orange)':'var(--green)';
+  let label=e.charAt(0).toUpperCase()+e.slice(1)+' Edge';
+  if(isTeam&&ld[e]){
+   const diff=((v.rate-ld[e].rate)*100).toFixed(1);
+   label+=' ('+(parseFloat(diff)>0?'+':'')+diff+'pp vs lg)';
+  }
+  return br(label,v.rate,col,v.n);
+ }).join('')+'</div>';
+
+ const best=sorted[0],worst=sorted[sorted.length-1];
+ const spread=((d[best].rate-d[worst].rate)*100).toFixed(1);
+ let notePrefix=mu.replace(/_/g,' ');
+ if(isTeam) notePrefix=team+' — '+notePrefix;
+ document.getElementById('pl-note').innerHTML='<strong>'+notePrefix+':</strong> '+best+' edge highest at '+pc(d[best].rate)+'. '+worst+' edge lowest at '+pc(d[worst].rate)+'. Spread: '+spread+'pp.';
+}
+
+function setPLTeam(team){
+ curPLTeam=team;
+ const lbl=document.getElementById('pl-team-label');
+ lbl.textContent=team==='LEAGUE'?'':'Showing team edge rates vs league baseline';
+ setMU(curMU,document.querySelector('.mu-btn.on'));
+ buildCmp();
+}
+
+function buildCmp(){
+ const mus=['LHP_vs_RHB','LHP_vs_LHB','RHP_vs_RHB','RHP_vs_LHB'],es=['inside','outside','top','bottom'];
+ const team=curPLTeam||'LEAGUE';
+ const isTeam=team!=='LEAGUE';
+ const le=D.leagueMatchupEdges;
+ const te=isTeam&&D.teamMatchupEdges?D.teamMatchupEdges[team]:null;
+
+ let h='<table><thead><tr><th>Matchup</th><th>Inside</th><th>Outside</th><th>Top</th><th>Bottom</th><th>Highest</th></tr></thead><tbody>';
+ mus.forEach(m=>{
+  const d=isTeam&&te?te[m]:le[m];
+  if(!d)return;
+  let mx='',mxR=0;
+  es.forEach(e=>{if(d[e]&&d[e].rate>mxR){mxR=d[e].rate;mx=e;}});
+  h+='<tr><td>'+m.replace(/_/g,' ')+'</td>';
+  es.forEach(e=>{
+   const v=d[e];
+   if(!v){h+='<td>—</td>';return;}
+   const c=e===mx?'up':v.rate<0.35?'dn':'';
+   let cell=pc(v.rate);
+   if(isTeam&&le[m]&&le[m][e]){
+    const diff=((v.rate-le[m][e].rate)*100).toFixed(1);
+    const dc=parseFloat(diff)>0?'up':parseFloat(diff)<0?'dn':'';
+    cell+=' <span class="'+dc+'" style="font-size:10px">('+(parseFloat(diff)>0?'+':'')+diff+')</span>';
+   }
+   h+='<td class="'+c+'">'+cell+'</td>';
+  });
+  h+='<td style="color:var(--accent);font-weight:600">'+mx.charAt(0).toUpperCase()+mx.slice(1)+' ('+pc(mxR)+')</td></tr>';
+ });
+ document.getElementById('pl-cmp').innerHTML=h+'</tbody></table>';
+}
+
+function filt(){
+ const team=document.getElementById('p-team').value;
+ const q=document.getElementById('p-srch').value.toLowerCase().trim();
+ let ps=Object.keys(D.pitcherMeta);
+ if(team!=='ALL')ps=ps.filter(n=>D.pitcherMeta[n].team===team);
+ if(q)ps=ps.filter(n=>n.toLowerCase().includes(q));
+ ps.sort((a,b)=>(D.pitcherMeta[b].cs_rate||0)-(D.pitcherMeta[a].cs_rate||0));
+
+ const el=document.getElementById('p-chips');
+ if(!ps.length){el.innerHTML='<span style="color:var(--text3);font-size:12px">No pitchers match.</span>';return;}
+ el.innerHTML=ps.map((p,i)=>{
+  const on=(curP===p||(!curP&&i===0))?' on':'';
+  return '<button class="chip'+on+'" onclick="selP(\''+esc(p)+'\',this)">'+shortN(p)+'</button>';
+ }).join('');
+ if(!curP||!ps.includes(curP))selP(ps[0],el.querySelector('.chip'));
+}
+
+function selP(name,btn){
+ curP=name;
+ document.querySelectorAll('#p-chips .chip').forEach(c=>c.classList.remove('on'));
+ if(btn)btn.classList.add('on');
+
+ const m=D.pitcherMeta[name],seqs=D.pitcherSequences[name]||[],plat=D.pitcherPlatoon[name]||[],avg=D.summary.overall_cs_rate;
+ const diff=m.cs_rate-avg;
+ const col=diff>0.04?'var(--green)':diff<-0.04?'var(--neg)':'var(--orange)';
+ const bg=diff>0.04?'var(--green-bg)':diff<-0.04?'var(--neg-bg)':'var(--orange-bg)';
+
+ const netAbs = m.net_abs || 0;
+ const netAbsHtml = netAbsBadge(netAbs);
+
+ document.getElementById('p-card').innerHTML='<div class="p-card"><div><div class="name">'+name+'</div><div class="meta"><span class="t">'+m.team+'</span><span class="t">'+m.hand+'HP</span><span>'+m.shadow_decisions+' decisions</span><span>Net ABS: '+netAbsHtml+'</span></div></div><div class="cs" style="color:'+col+';background:'+bg+'">'+pc(m.cs_rate)+'</div></div>';
+
+ if(seqs.length){
+  document.getElementById('p-seq').innerHTML='<div class="bars">'+seqs.map(s=>{
+   const c=s.rate>avg+0.05?'var(--green)':s.rate<avg-0.05?'var(--neg)':'var(--text3)';
+   return br(s.seq,s.rate,c,s.n);
+  }).join('')+'</div>';
+ }else document.getElementById('p-seq').innerHTML='<span style="color:var(--text3);font-size:12px">Insufficient data.</span>';
+
+ if(plat.length){
+  document.getElementById('p-plat').innerHTML='<table><thead><tr><th>Matchup</th><th>Edge</th><th>CS Rate</th><th>n</th></tr></thead><tbody>'+
+   plat.map(p=>{const c=p.rate>avg+0.06?'up':p.rate<avg-0.06?'dn':'';return '<tr><td>'+p.matchup+'</td><td>'+p.edge+'</td><td class="'+c+'">'+pc(p.rate)+'</td><td>'+p.n+'</td></tr>';}).join('')+'</tbody></table>';
+ }else document.getElementById('p-plat').innerHTML='<span style="color:var(--text3);font-size:12px">Insufficient data.</span>';
+
+ document.getElementById('p-note').innerHTML=genNote(name,m,seqs,plat,avg);
+
+ const catchers=pitcherToCatchers[name];
+ if(catchers&&catchers.length){
+  const sorted=[...catchers].sort((a,b)=>b.rate-a.rate);
+  document.getElementById('p-catchers').innerHTML=
+   '<table><thead><tr><th>Catcher</th><th>CS Rate</th><th>n</th><th>vs Pitcher Avg</th></tr></thead><tbody>'+
+   sorted.map(c=>{
+    const df=((c.rate-m.cs_rate)*100).toFixed(1);
+    const cl=c.rate>m.cs_rate+0.03?'up':c.rate<m.cs_rate-0.03?'dn':'';
+    const hasMeta=D.catcherMeta&&D.catcherMeta[c.catcher];
+    const nameCell=hasMeta?'<span class="link-name" onclick="jumpC(\''+esc(c.catcher)+'\')">'+c.catcher+'</span>':c.catcher;
+    return '<tr><td>'+nameCell+'</td><td class="'+cl+'">'+pc(c.rate)+'</td><td>'+c.n+'</td><td class="'+cl+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td></tr>';
+   }).join('')+'</tbody></table>';
+ }else{
+  document.getElementById('p-catchers').innerHTML='<span style="color:var(--text3);font-size:12px">No battery split data (needs 2+ catchers with 30+ decisions each).</span>';
+ }
+ 
+ const absImpact = calcABSImpact(m);
+ document.getElementById('p-abs').innerHTML = renderABSProjection(absImpact, 'pitcher');
+}
+
+function genNote(name,m,seqs,plat,avg){
+ const parts=[],d=m.cs_rate-avg,dp=(d*100).toFixed(1);
+ 
+ if(d>0.06)parts.push('<strong>Elite shadow zone pitcher</strong> — '+pc(m.cs_rate)+' CS rate, +'+dp+'pp above league average.');
+ else if(d>0.02)parts.push('<strong>Above-average shadow zone pitcher</strong> — '+pc(m.cs_rate)+' (+'+dp+'pp).');
+ else if(d>-0.02)parts.push('<strong>League-average shadow zone profile</strong> — '+pc(m.cs_rate)+'.');
+ else parts.push('<strong>Below-average shadow zone pitcher</strong> — '+pc(m.cs_rate)+' ('+dp+'pp vs avg).');
+
+ if(seqs.length){
+  const best=seqs[0],worst=seqs[seqs.length-1];
+  parts.push('<strong>Best sequence:</strong> '+best.seq+' at '+pc(best.rate)+' (n='+best.n+').');
+  const sp=((best.rate-worst.rate)*100).toFixed(1);
+  if(parseFloat(sp)>8)parts.push('Sequence spread: '+sp+'pp — '+worst.seq+' drops to '+pc(worst.rate)+'.');
+ }
+ if(plat.length){
+  const s=[...plat].sort((a,b)=>b.rate-a.rate),hi=s[0],lo=s[s.length-1];
+  parts.push('<strong>Strongest edge:</strong> '+hi.edge+' vs '+hi.matchup.split(' vs ')[1]+' at '+pc(hi.rate)+' (n='+hi.n+').');
+  parts.push('<strong>Challenge vulnerability:</strong> '+lo.edge+' in '+lo.matchup+' at '+pc(lo.rate)+(lo.rate<0.30?' — batters should challenge aggressively.':'.'));
+ }
+ 
+ return parts.join(' ');
+}
+
+function teamView(){
+ const team=document.getElementById('t-sel').value,el=document.getElementById('t-body');
+ if(!team){el.innerHTML='';return;}
+ const avg=D.summary.overall_cs_rate;
+ const ps=Object.entries(D.pitcherMeta).filter(([_,m])=>m.team===team).sort((a,b)=>b[1].cs_rate-a[1].cs_rate);
+ const te=D.teamMatchupEdges[team];
+ const teamAbs = D.teamNetABS && D.teamNetABS[team] ? D.teamNetABS[team] : null;
+
+ let tDec=0,tCS=0,tPitches=0,tShadow=0;
+ ps.forEach(([_,m])=>{tDec+=m.shadow_decisions;tCS+=Math.round(m.cs_rate*m.shadow_decisions);tPitches+=m.total_pitches;tShadow+=m.shadow_pitches;});
+ const tRate=tDec>0?tCS/tDec:0;
+ const tDiff=((tRate-avg)*100).toFixed(1);
+ const tCol=tRate>avg+0.02?'var(--green)':tRate<avg-0.02?'var(--neg)':'var(--text)';
+
+ const best=ps[0],worst=ps[ps.length-1];
+
+ let h='<div class="team-name">'+team+'</div><div class="team-sub">'+ps.length+' qualified pitchers</div>';
+ h+='<div class="stats" style="margin:0 0 16px">';
+ h+=st('Team CS Rate','<span style="color:'+tCol+'">'+pc(tRate)+'</span>','<span style="color:'+tCol+'">'+(parseFloat(tDiff)>0?'+':'')+tDiff+'pp vs league</span>');
+ h+=st('Decisions',tDec.toLocaleString(),tShadow.toLocaleString()+' shadow pitches');
+ if(teamAbs){
+  const netCol = teamAbs.net_abs > 0 ? 'var(--green)' : 'var(--neg)';
+  h+=st('Net ABS','<span style="color:'+netCol+'">'+(teamAbs.net_abs>=0?'+':'')+teamAbs.net_abs.toFixed(1)+'</span>','USS: −'+teamAbs.uss_runs.toFixed(1)+' / ULS: +'+teamAbs.uls_runs.toFixed(1));
+ }
+ h+=st('Staff Best',best?pc(best[1].cs_rate):'—',best?best[0]:'');
+ h+='</div>';
+
+ h+='<div class="panel" style="margin-bottom:16px"><div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Staff Rankings</div>'+
+  '<table><thead><tr><th>Pitcher</th><th>Hand</th><th>Decisions</th><th>CS Rate</th><th>vs League</th><th>Net ABS</th></tr></thead><tbody>'+
+  ps.map(([n,m])=>{
+   const dfL=((m.cs_rate-avg)*100).toFixed(1);
+   const cL=m.cs_rate>avg+0.02?'up':m.cs_rate<avg-0.02?'dn':'';
+   const netAbs = m.net_abs || 0;
+   const netCol = netAbs > 0.5 ? 'up' : netAbs < -0.5 ? 'dn' : '';
+   return '<tr class="clickable" onclick="jumpP(\''+esc(n)+'\')"><td>'+n+'</td><td>'+m.hand+'HP</td><td>'+m.shadow_decisions+'</td><td class="'+cL+'">'+pc(m.cs_rate)+'</td><td class="'+cL+'">'+(parseFloat(dfL)>0?'+':'')+dfL+'pp</td><td class="'+netCol+'">'+(netAbs>=0?'+':'')+netAbs.toFixed(1)+'</td></tr>';
+  }).join('')+'</tbody></table></div>';
+
+ if(te){
+  const le=D.leagueMatchupEdges;
+  h+='<div class="panel"><div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Team Matchup Edges</div>'+
+   '<table><thead><tr><th>Matchup</th><th>Inside</th><th>Outside</th><th>Top</th><th>Bottom</th></tr></thead><tbody>';
+  ['LHP_vs_LHB','LHP_vs_RHB','RHP_vs_RHB','RHP_vs_LHB'].forEach(mu=>{
+   const md=te[mu]; if(!md)return;
+   const ld=le[mu]||{};
+   h+='<tr><td>'+mu.replace(/_/g,' ')+'</td>';
+   ['inside','outside','top','bottom'].forEach(e=>{
+    if(md[e]){
+     const lRate=ld[e]?ld[e].rate:avg;
+     const diff=((md[e].rate-lRate)*100).toFixed(1);
+     const c=md[e].rate>lRate+0.03?'up':md[e].rate<lRate-0.03?'dn':'';
+     h+='<td class="'+c+'">'+pc(md[e].rate)+' <span style="color:var(--text3);font-size:10px">'+(parseFloat(diff)>0?'+':'')+diff+'pp</span></td>';
+    } else h+='<td>—</td>';
+   });
+   h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+ }
+ el.innerHTML=h;
+}
+
+function jumpP(name){
+ document.querySelectorAll('#tb .tab').forEach(t=>t.classList.remove('active'));
+ document.querySelectorAll('.tp').forEach(t=>t.classList.add('hidden'));
+ document.querySelectorAll('#tb .tab')[2].classList.add('active');
+ document.getElementById('tab-pitchers').classList.remove('hidden');
+ const m=D.pitcherMeta[name];
+ if(m)document.getElementById('p-team').value=m.team;
+ document.getElementById('p-srch').value='';
+ filt();
+ setTimeout(()=>{document.querySelectorAll('#p-chips .chip').forEach(c=>{if(c.textContent===shortN(name))selP(name,c);});},30);
+}
+
+function jumpC(name){
+ document.querySelectorAll('#tb .tab').forEach(t=>t.classList.remove('active'));
+ document.querySelectorAll('.tp').forEach(t=>t.classList.add('hidden'));
+ document.querySelectorAll('#tb .tab')[4].classList.add('active');
+ document.getElementById('tab-catchers').classList.remove('hidden');
+ const m=D.catcherMeta[name];
+ if(m)document.getElementById('c-team').value=m.team;
+ document.getElementById('c-srch').value='';
+ filtC();
+ setTimeout(()=>selC(name),30);
+}
+
+function cSort(col){
+ if(cSortCol===col) cSortDir=cSortDir==='desc'?'asc':'desc';
+ else { cSortCol=col; cSortDir='desc'; }
+ filtC();
+}
+
+function filtC(){
+ if(!D.catcherMeta){document.getElementById('c-rank').innerHTML='<div class="note" style="border-left-color:var(--text3)">Catcher data not available.</div>';return;}
+ const team=document.getElementById('c-team').value;
+ const q=document.getElementById('c-srch').value.toLowerCase().trim();
+ const avg=D.summary.overall_cs_rate;
+ let cs=Object.entries(D.catcherMeta);
+ if(team!=='ALL')cs=cs.filter(([_,m])=>m.team===team);
+ if(q)cs=cs.filter(([n])=>n.toLowerCase().includes(q));
+
+ const dir=cSortDir==='desc'?-1:1;
+ const getVal=(m,col)=>{
+  if(col==='cs_rate') return m.cs_rate;
+  if(col==='shadow_decisions') return m.shadow_decisions;
+  if(col==='vs_avg') return m.cs_rate-avg;
+  if(col==='uss_runs') return m.uss_runs||0;
+  if(col==='uls_runs') return m.uls_runs||0;
+  if(col==='net_abs') return m.net_abs||0;
+  return 0;
+ };
+ cs.sort((a,b)=>dir*(getVal(a[1],cSortCol)-getVal(b[1],cSortCol)));
+
+ if(!cs.length){document.getElementById('c-rank').innerHTML='<span style="color:var(--text3);font-size:12px">No catchers match.</span>';return;}
+
+ function thS(label,col){
+  const cls='sortable'+(cSortCol===col?' '+cSortDir:'');
+  return '<th class="'+cls+'" onclick="cSort(\''+col+'\')">'+label+'</th>';
+ }
+
+ document.getElementById('c-rank').innerHTML=
+  '<div class="panel" style="margin-bottom:16px"><div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Shadow Zone Rankings</div>'+
+  '<table><thead><tr><th>Catcher</th><th>Team</th>'+thS('Decisions','shadow_decisions')+thS('CS Rate','cs_rate')+thS('USS','uss_runs')+thS('ULS','uls_runs')+thS('Net ABS','net_abs')+'</tr></thead><tbody>'+
+  cs.map(([n,m])=>{
+   const ur=m.uss_runs||0;
+   const ulr=m.uls_runs||0;
+   const netAbs=m.net_abs||0;
+   const netCol=netAbs>2?'up':netAbs<-2?'dn':'';
+   return '<tr class="clickable" onclick="selC(\''+esc(n)+'\')"><td>'+n+'</td><td>'+m.team+'</td><td>'+m.shadow_decisions+'</td><td>'+pc(m.cs_rate)+'</td><td class="dn">−'+ur.toFixed(1)+'</td><td class="up">+'+ulr.toFixed(1)+'</td><td class="'+netCol+'">'+(netAbs>=0?'+':'')+netAbs.toFixed(1)+'</td></tr>';
+  }).join('')+'</tbody></table></div>';
+}
+
+function selC(name){
+ curC=name;
+ const m=D.catcherMeta[name];
+ const avg=D.summary.overall_cs_rate;
+ const diff=m.cs_rate-avg;
+ const col=diff>0.04?'var(--green)':diff<-0.04?'var(--neg)':'var(--orange)';
+ const bg=diff>0.04?'var(--green-bg)':diff<-0.04?'var(--neg-bg)':'var(--orange-bg)';
+
+ const netAbs = m.net_abs || 0;
+ const netAbsHtml = netAbsBadge(netAbs);
+
+ document.getElementById('c-detail').classList.remove('hidden');
+ document.getElementById('c-card').innerHTML=
+  '<div class="p-card"><div><div class="name">'+name+'</div><div class="meta"><span class="t">'+m.team+'</span><span>'+m.shadow_decisions+' decisions</span><span>Net ABS: '+netAbsHtml+'</span></div></div><div class="cs" style="color:'+col+';background:'+bg+'">'+pc(m.cs_rate)+'</div></div>';
+
+ const edges=D.catcherPlatoon?D.catcherPlatoon[name]:null;
+ if(edges&&edges.length){
+  const sorted=[...edges].sort((a,b)=>b.rate-a.rate);
+  document.getElementById('c-edges').innerHTML='<div class="bars">'+
+   sorted.map(e=>{
+    const c=e.rate>avg+0.05?'var(--green)':e.rate<avg-0.05?'var(--neg)':'var(--text3)';
+    const netE = e.net_abs || 0;
+    const label = e.edge + ' Edge' + (netE !== 0 ? ' (Net: ' + (netE>=0?'+':'') + netE.toFixed(1) + ')' : '');
+    return br(label,e.rate,c,e.n);
+   }).join('')+'</div>';
+ }else{
+  document.getElementById('c-edges').innerHTML='<span style="color:var(--text3);font-size:12px">Insufficient edge data.</span>';
+ }
+
+ const pairs=D.pitcherCatcherPairs?D.pitcherCatcherPairs[name]:null;
+ if(pairs&&pairs.length){
+  const sorted=[...pairs].sort((a,b)=>b.rate-a.rate);
+  document.getElementById('c-pairs').innerHTML=
+   '<table><thead><tr><th>Pitcher</th><th>CS Rate</th><th>n</th><th>vs Catcher Avg</th></tr></thead><tbody>'+
+   sorted.map(p=>{
+    const df=((p.rate-m.cs_rate)*100).toFixed(1);
+    const c=p.rate>m.cs_rate+0.03?'up':p.rate<m.cs_rate-0.03?'dn':'';
+    const hasMeta=D.pitcherMeta&&D.pitcherMeta[p.pitcher];
+    const nameCell=hasMeta?'<span class="link-name" onclick="jumpP(\''+esc(p.pitcher)+'\')">'+p.pitcher+'</span>':p.pitcher;
+    return '<tr><td>'+nameCell+'</td><td class="'+c+'">'+pc(p.rate)+'</td><td>'+p.n+'</td><td class="'+c+'">'+(parseFloat(df)>0?'+':'')+df+'pp</td></tr>';
+   }).join('')+'</tbody></table>';
+ }else{
+  document.getElementById('c-pairs').innerHTML='<span style="color:var(--text3);font-size:12px">Insufficient battery data.</span>';
+ }
+
+ const framing=D.catcherFraming?D.catcherFraming[name]:null;
+ if(framing){
+  const zoneOrder=['top_left','top_mid','top_right','mid_left','mid_right','bot_left','bot_mid','bot_right'];
+  const zoneLabels={top_left:'Top L',top_mid:'Top',top_right:'Top R',mid_left:'Left',mid_right:'Right',bot_left:'Bot L',bot_mid:'Bottom',bot_right:'Bot R'};
+  const rvCol=framing.rv_tot>=5?'var(--green)':framing.rv_tot<=-5?'var(--neg)':'var(--text)';
+
+  let fh='<div class="framing-summary">';
+  fh+='<div style="text-align:center"><div class="fs-lbl">Total Run Value</div><div class="fs-val" style="color:'+rvCol+'">'+framing.rv_tot.toFixed(1)+'</div></div>';
+  fh+='<div style="text-align:center"><div class="fs-lbl">Shadow CS%</div><div class="fs-val">'+pc(framing.pct_tot)+'</div></div>';
+  fh+='<div style="text-align:center"><div class="fs-lbl">Pitches</div><div class="fs-val" style="font-size:20px">'+framing.pitches.toLocaleString()+'</div></div>';
+  fh+='</div>';
+
+  fh+='<div class="zone-grid">';
+  zoneOrder.forEach((z,i)=>{
+   if(i===4) fh+='<div class="zone-cell" style="border:1px dashed var(--border);display:flex;align-items:center;justify-content:center"><span style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px">ZONE</span></div>';
+   const zd=framing.zones[z];
+   const rc=zd.rv>=1?'var(--green)':zd.rv<=-1?'var(--neg)':'var(--text2)';
+   const zbg=zd.rv>=1?'var(--green-bg)':zd.rv<=-1?'var(--neg-bg)':'var(--bg2)';
+   fh+='<div class="zone-cell" style="background:'+zbg+'"><div class="zn">'+zoneLabels[z]+'</div><div class="zv" style="color:'+rc+'">'+zd.rv.toFixed(0)+'</div><div class="zp">'+pc(zd.pct)+'</div></div>';
+  });
+  fh+='</div>';
+  document.getElementById('c-framing').innerHTML=fh;
+ }else{
+  document.getElementById('c-framing').innerHTML='<span style="color:var(--text3);font-size:12px">No Savant framing data available for this catcher.</span>';
+ }
+
+ document.getElementById('c-note').innerHTML=genCNote(name,m,edges,pairs,avg);
+ 
+ const absImpact = calcABSImpact(m);
+ document.getElementById('c-abs').innerHTML = renderABSProjection(absImpact, 'catcher');
+ 
+ document.getElementById('c-detail').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function genCNote(name,m,edges,pairs,avg){
+ const parts=[],d=m.cs_rate-avg,dp=(d*100).toFixed(1);
+ const netAbs = m.net_abs || 0;
+ 
+ if(d>0.06)parts.push('<strong>Elite framer</strong> — '+pc(m.cs_rate)+' shadow zone CS rate, +'+dp+'pp above league average.');
+ else if(d>0.02)parts.push('<strong>Above-average framer</strong> — '+pc(m.cs_rate)+' (+'+dp+'pp).');
+ else if(d>-0.02)parts.push('<strong>League-average framing</strong> — '+pc(m.cs_rate)+'.');
+ else parts.push('<strong>Below-average framer</strong> — '+pc(m.cs_rate)+' ('+dp+'pp vs avg).');
+
+ // ABS impact interpretation
+ if(netAbs < -3){
+  parts.push('<strong>ABS exposure:</strong> Net −'+Math.abs(netAbs).toFixed(1)+' runs under the challenge system. Elite framing value is reduced — consider targeting low-confidence steals in early counts where challenges are less likely.');
+ } else if(netAbs > 3){
+  parts.push('<strong>ABS beneficiary:</strong> Net +'+netAbs.toFixed(1)+' runs under the challenge system. This catcher recovers more squeezed calls than they lose to challenges.');
+ }
+
+ if(edges&&edges.length){
+  const s=[...edges].sort((a,b)=>b.rate-a.rate),hi=s[0],lo=s[s.length-1];
+  parts.push('<strong>Best edge:</strong> '+hi.edge+' at '+pc(hi.rate)+' (n='+hi.n+').');
+  parts.push('<strong>Weakest edge:</strong> '+lo.edge+' at '+pc(lo.rate)+(lo.rate<0.35?' — batters get the benefit here.':'.'));
+ }
+ if(pairs&&pairs.length){
+  const s=[...pairs].sort((a,b)=>b.rate-a.rate);
+  const best=s[0],worst=s[s.length-1];
+  if(s.length>=2){
+   const spread=((best.rate-worst.rate)*100).toFixed(1);
+   parts.push('<strong>Battery spread:</strong> '+spread+'pp — best with '+best.pitcher+' ('+pc(best.rate)+'), worst with '+worst.pitcher+' ('+pc(worst.rate)+').');
+  }
+ }
+ 
+ return parts.join(' ');
+}
+
+function buildScoutCards(){
+ const team=document.getElementById('sc-team').value;
+ const el=document.getElementById('sc-body');
+ if(!team){el.innerHTML='';return;}
+ if(!D.catcherMeta){el.innerHTML='<div class="note" style="border-left-color:var(--text3)">Catcher data not available.</div>';return;}
+
+ const catchers=Object.entries(D.catcherMeta).filter(([_,m])=>m.team===team).sort((a,b)=>(b[1].net_abs||0)-(a[1].net_abs||0));
+ if(!catchers.length){el.innerHTML='<span style="color:var(--text3);font-size:12px">No catchers found for '+team+'.</span>';return;}
+
+ document.getElementById('scout-print-title').textContent='Scouting Card — '+team;
+ document.getElementById('scout-print-sub').textContent='Shadow Zone ABS Profile — '+D.summary.season+' Season | Generated '+new Date().toLocaleDateString();
+
+ let h='';
+ catchers.forEach(([name,meta])=>{
+  const edges=D.catcherPlatoon?D.catcherPlatoon[name]:null;
+  const netAbs=meta.net_abs||0;
+  const ussRuns=meta.uss_runs||0;
+  const ulsRuns=meta.uls_runs||0;
+  const ratePct=(meta.cs_rate*100).toFixed(1);
+  const col=netAbs>2?'var(--green)':netAbs<-2?'var(--neg)':'var(--orange)';
+
+  h+='<div class="scout-card">';
+  h+='<div class="scout-card-header">';
+  h+='<div><div class="sc-name">'+name+'</div><div class="sc-meta">'+meta.team+' · USS: −'+ussRuns.toFixed(1)+' / ULS: +'+ulsRuns.toFixed(1)+' · <strong style="color:'+col+'">Net ABS: '+(netAbs>=0?'+':'')+netAbs.toFixed(1)+'</strong></div></div>';
+  h+='<div class="sc-rate" style="color:'+col+'">'+ratePct+'%</div>';
+  h+='</div>';
+
+  if(edges&&edges.length){
+   const sorted=[...edges].sort((a,b)=>(b.net_abs||0)-(a.net_abs||0));
+   h+='<div class="scout-section">';
+   h+='<div class="scout-section-title">Edge Net ABS Profile</div>';
+   sorted.forEach(e=>{
+    const eNet=e.net_abs||0;
+    const eCol=eNet>0.5?'var(--green)':eNet<-0.5?'var(--neg)':'var(--orange)';
+    const w=Math.max(e.rate*180,8);
+    h+='<div class="scout-edge-row">';
+    h+='<div class="scout-edge-label">'+e.edge+'</div>';
+    h+='<div class="scout-edge-bar"><div class="scout-edge-fill" style="width:'+w+'%;background:'+eCol+'"><span>'+pc(e.rate)+' · Net: '+(eNet>=0?'+':'')+eNet.toFixed(1)+'</span></div></div>';
+    h+='</div>';
+   });
+   h+='</div>';
+  }
+
+  h+='<div class="scout-section">';
+  h+='<div class="scout-section-title">Challenge Strategy</div>';
+  h+='<div class="scout-strategy">';
+  h+=genScoutStrategy(name,meta,edges);
+  h+='</div>';
+  h+='</div>';
+
+  h+='</div>';
+ });
+
+ el.innerHTML=h;
+}
+
+function genScoutStrategy(name,meta,edges){
+ const parts=[];
+ const netAbs=meta.net_abs||0;
+ const ussRuns=meta.uss_runs||0;
+ const ulsRuns=meta.uls_runs||0;
+
+ if(netAbs < -2){
+  parts.push('<strong>Elite framer — high challenge value.</strong> '+name+' loses '+Math.abs(netAbs).toFixed(1)+' runs under ABS. Be aggressive with challenges against this catcher — their framing advantage is contestable.');
+ } else if(netAbs > 2){
+  parts.push('<strong>Weak framer — low challenge priority.</strong> '+name+' actually benefits from ABS by +'+netAbs.toFixed(1)+' runs. Save challenges for higher-value situations.');
+ } else {
+  parts.push('<strong>ABS-neutral.</strong> Net impact of '+(netAbs>=0?'+':'')+netAbs.toFixed(1)+' runs — standard challenge approach.');
+ }
+
+ if(edges&&edges.length){
+  const byNet=[...edges].sort((a,b)=>(a.net_abs||0)-(b.net_abs||0));
+  const worstEdge=byNet[0];
+  if((worstEdge.net_abs||0)<-0.5){
+   parts.push('<strong>Challenge zone:</strong> '+worstEdge.edge+' edge (Net: '+worstEdge.net_abs.toFixed(1)+' runs). This is where their framing value is most exposed to challenges.');
+  }
+ }
+
+ return parts.join(' ');
+}
+
+function printScoutCards(){
+ const team=document.getElementById('sc-team').value;
+ if(!team){alert('Select an opponent team first.');return;}
+ window.print();
+}
+
+function filtPD(){
+ if(!D.catcherMeta) return;
+ const team=document.getElementById('pd-team').value;
+ let cs=Object.entries(D.catcherMeta);
+ if(team!=='ALL') cs=cs.filter(([_,m])=>m.team===team);
+ cs.sort((a,b)=>(b[1].net_abs||0)-(a[1].net_abs||0));
+
+ const sel=document.getElementById('pd-catcher');
+ sel.innerHTML='<option value="">Select catcher…</option>'+cs.map(([n,m])=>{
+  const netAbs = m.net_abs || 0;
+  return '<option value="'+esc(n)+'">'+shortN(n)+' ('+m.team+') — Net ABS: '+(netAbs>=0?'+':'')+netAbs.toFixed(1)+'</option>';
+ }).join('');
+
+ document.getElementById('pd-body').innerHTML='';
+}
+
+function buildPDReport(){
+ const name=document.getElementById('pd-catcher').value;
+ const el=document.getElementById('pd-body');
+ if(!name){el.innerHTML='';return;}
+
+ const m=D.catcherMeta[name];
+ const edges=D.catcherPlatoon?D.catcherPlatoon[name]:null;
+
+ const ussRuns=m.uss_runs||0;
+ const ulsRuns=m.uls_runs||0;
+ const netAbs=m.net_abs||0;
+ const stolenTotal=m.stolen_strikes||0;
+ const lostTotal=m.lost_strikes||0;
+
+ let h='';
+
+ h+='<div class="pd-summary-row">';
+ const netCol=netAbs>2?'var(--green)':netAbs<-2?'var(--neg)':'var(--orange)';
+ h+='<div class="pd-summary-box"><div class="pd-sl">USS Runs Lost</div><div class="pd-sv" style="color:var(--neg)">−'+ussRuns.toFixed(1)+'</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3);">'+stolenTotal+' stolen strikes</div></div>';
+ h+='<div class="pd-summary-box"><div class="pd-sl">ULS Runs Recovered</div><div class="pd-sv" style="color:var(--green)">+'+ulsRuns.toFixed(1)+'</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3);">'+lostTotal+' lost strikes</div></div>';
+ h+='<div class="pd-summary-box"><div class="pd-sl">Net ABS Impact</div><div class="pd-sv" style="color:'+netCol+'">'+(netAbs>=0?'+':'')+netAbs.toFixed(1)+'</div><div style="font-family:var(--mono);font-size:11px;color:var(--text3);">'+(netAbs>=0?'benefits from':'hurt by')+' ABS</div></div>';
+ h+='</div>';
+
+ if(edges&&edges.length){
+  h+='<div class="panel" style="margin-bottom:16px;">';
+  h+='<div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Edge Net ABS Breakdown</div>';
+  h+='<div class="panel-desc">Net ABS per edge: positive = defense benefits, negative = offense benefits from challenges.</div>';
+  h+='<table><thead><tr><th>Edge</th><th>CS Rate</th><th>USS Runs</th><th>ULS Runs</th><th>Net ABS</th></tr></thead><tbody>';
+  const sorted=[...edges].sort((a,b)=>(b.net_abs||0)-(a.net_abs||0));
+  sorted.forEach(e=>{
+   const eUss=e.uss_runs||0;
+   const eUls=e.uls_runs||0;
+   const eNet=e.net_abs||0;
+   const netCol=eNet>0.5?'up':eNet<-0.5?'dn':'';
+   h+='<tr><td>'+e.edge+'</td><td>'+pc(e.rate)+'</td><td class="dn">−'+eUss.toFixed(1)+'</td><td class="up">+'+eUls.toFixed(1)+'</td><td class="'+netCol+'">'+(eNet>=0?'+':'')+eNet.toFixed(1)+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='</div>';
+ }
+
+ h+='<div class="panel">';
+ h+='<div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Development Summary</div>';
+ h+='<div class="note">'+genPDNote(name,m,edges)+'</div>';
+ h+='</div>';
+
+ el.innerHTML=h;
+}
+
+function genPDNote(name,m,edges){
+ const parts=[];
+ const netAbs=m.net_abs||0;
+ const ussRuns=m.uss_runs||0;
+ const ulsRuns=m.uls_runs||0;
+
+ if(netAbs < -3){
+  parts.push('<strong>'+shortN(name)+' is an elite framer hurt by ABS</strong> — loses '+Math.abs(netAbs).toFixed(1)+' runs net. Development focus: target low-confidence steals in early counts (0-0, 0-1, 1-0) where challenge EV is negative for the offense.');
+ } else if(netAbs > 3){
+  parts.push('<strong>'+shortN(name)+' benefits significantly from ABS</strong> — gains +'+netAbs.toFixed(1)+' runs net. This catcher is getting squeezed by umpires; ABS challenges help recover lost value.');
+ } else {
+  parts.push('<strong>'+shortN(name)+' is ABS-neutral</strong> at '+(netAbs>=0?'+':'')+netAbs.toFixed(1)+' runs. Balanced stolen/lost strike profile.');
+ }
+
+ if(edges&&edges.length){
+  const byNet=[...edges].sort((a,b)=>(b.net_abs||0)-(a.net_abs||0));
+  const best=byNet[0],worst=byNet[byNet.length-1];
+  if(best.net_abs > 0.5){
+   parts.push('<strong>Strongest edge for ABS:</strong> '+best.edge+' at +'+(best.net_abs).toFixed(1)+' net runs — this is where the catcher benefits most from challenge recovery.');
+  }
+  if(worst.net_abs < -0.5){
+   parts.push('<strong>Weakest edge for ABS:</strong> '+worst.edge+' at '+(worst.net_abs).toFixed(1)+' net runs — framing effort here is most exposed to challenges. Consider strategic deprioritization.');
+  }
+ }
+
+ return parts.join(' ');
+}
+
+function foSort(col){
+ if(foSortCol===col) foSortDir=foSortDir==='desc'?'asc':'desc';
+ else { foSortCol=col; foSortDir='desc'; }
+ buildFOLeaderboard();
+}
+
+function buildFOLeaderboard(){
+ if(!D.catcherMeta){document.getElementById('fo-leaderboard').innerHTML='<div class="note" style="border-left-color:var(--text3)">Catcher data not available.</div>';return;}
+
+ const avg=D.summary.overall_cs_rate;
+
+ let catchers=Object.keys(D.catcherMeta).map(name=>{
+  const m=D.catcherMeta[name];
+  return {
+   name,
+   team:m.team,
+   cs_rate:m.cs_rate,
+   decisions:m.shadow_decisions,
+   uss_runs:m.uss_runs||0,
+   uls_runs:m.uls_runs||0,
+   net_abs:m.net_abs||0,
+   stolen_strikes:m.stolen_strikes||0,
+   lost_strikes:m.lost_strikes||0
+  };
+ });
+
+ const dir=foSortDir==='desc'?-1:1;
+ catchers.sort((a,b)=>dir*(a[foSortCol]-b[foSortCol]));
+
+ function thS(label,col){
+  const cls='sortable'+(foSortCol===col?' '+foSortDir:'');
+  return '<th class="'+cls+'" onclick="foSort(\''+col+'\')">'+label+'</th>';
+ }
+
+ let h='<div class="panel" style="margin-bottom:16px;">';
+ h+='<div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher ABS Valuation Leaderboard</div>';
+ h+='<div class="panel-desc">Net ABS = ULS − USS. Positive = benefits from ABS, negative = hurt by ABS (elite framers).</div>';
+ h+='<table><thead><tr><th></th><th>Rank</th><th>Catcher</th><th>Team</th>'+thS('CS Rate','cs_rate')+thS('USS','uss_runs')+thS('ULS','uls_runs')+thS('Net ABS','net_abs')+'</tr></thead><tbody>';
+
+ catchers.forEach((c,i)=>{
+  const isSelected=foSelected.has(c.name);
+  const netCol=c.net_abs>2?'up':c.net_abs<-2?'dn':'';
+
+  h+='<tr class="clickable" style="'+(isSelected?'background:var(--blue-bg);':'')+'">';
+  h+='<td><button class="fo-add-btn'+(isSelected?' on':'')+'" onclick="event.stopPropagation();toggleFOSelect(\''+esc(c.name)+'\')" style="padding:2px 8px;font-size:10px;">'+(isSelected?'✓':'+')+' </button></td>';
+  h+='<td>'+(i+1)+'</td>';
+  h+='<td><span class="link-name" onclick="jumpC(\''+esc(c.name)+'\')">'+c.name+'</span></td>';
+  h+='<td>'+c.team+'</td>';
+  h+='<td>'+pc(c.cs_rate)+'</td>';
+  h+='<td class="dn">−'+c.uss_runs.toFixed(1)+'</td>';
+  h+='<td class="up">+'+c.uls_runs.toFixed(1)+'</td>';
+  h+='<td class="'+netCol+'">'+(c.net_abs>=0?'+':'')+c.net_abs.toFixed(1)+'</td>';
+  h+='</tr>';
+ });
+
+ h+='</tbody></table></div>';
+ document.getElementById('fo-leaderboard').innerHTML=h;
+
+ if(foSelected.size>=2) buildFOCompare();
+}
+
+function toggleFOSelect(name){
+ if(foSelected.has(name)) foSelected.delete(name);
+ else foSelected.add(name);
+ buildFOLeaderboard();
+ if(foSelected.size>=2) buildFOCompare();
+ else document.getElementById('fo-compare').classList.add('hidden');
+}
+
+function toggleFOCompare(){
+ if(foSelected.size<2){
+  alert('Select at least 2 catchers from the leaderboard to compare.');
+  return;
+ }
+ buildFOCompare();
+}
+
+function clearFOCompare(){
+ foSelected.clear();
+ document.getElementById('fo-compare').classList.add('hidden');
+ buildFOLeaderboard();
+}
+
+function buildFOCompare(){
+ const el=document.getElementById('fo-compare');
+ if(foSelected.size<2){el.classList.add('hidden');return;}
+ el.classList.remove('hidden');
+
+ const names=[...foSelected];
+ const catchers=names.map(name=>{
+  const m=D.catcherMeta[name];
+  const edges=D.catcherPlatoon?D.catcherPlatoon[name]:null;
+  return {
+   name,
+   team:m.team,
+   cs_rate:m.cs_rate,
+   decisions:m.shadow_decisions,
+   uss_runs:m.uss_runs||0,
+   uls_runs:m.uls_runs||0,
+   net_abs:m.net_abs||0,
+   edges
+  };
+ });
+
+ const ref=catchers[0];
+
+ let h='<div class="panel" style="margin-top:16px;">';
+ h+='<div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Side-by-Side Comparison</div>';
+ h+='<div class="panel-desc">Comparing '+catchers.length+' catchers. Differences shown relative to '+ref.name+'.</div>';
+
+ const cols=Math.min(catchers.length,4);
+ h+='<div class="fo-compare-grid" style="grid-template-columns:repeat('+cols+',1fr);">';
+ catchers.forEach((c,i)=>{
+  const isRef=i===0;
+  h+='<div class="fo-compare-card" style="'+(isRef?'border-color:var(--blue);border-width:2px;':'')+'">';
+  h+='<div class="fo-name">'+c.name+(isRef?' <span style="font-family:var(--mono);font-size:9px;color:var(--blue);font-weight:600;vertical-align:middle;">BASELINE</span>':'')+'</div>';
+  h+='<div class="fo-team">'+c.team+' · '+c.decisions+' decisions</div>';
+
+  const metrics=[
+   {label:'Shadow CS Rate',val:pc(c.cs_rate),raw:c.cs_rate,refRaw:ref.cs_rate,fmt:'pct',good:'higher'},
+   {label:'USS Runs Lost',val:'−'+c.uss_runs.toFixed(1),raw:c.uss_runs,refRaw:ref.uss_runs,fmt:'num',good:'lower'},
+   {label:'ULS Runs Recovered',val:'+'+c.uls_runs.toFixed(1),raw:c.uls_runs,refRaw:ref.uls_runs,fmt:'num',good:'higher'},
+   {label:'Net ABS Impact',val:(c.net_abs>=0?'+':'')+c.net_abs.toFixed(1),raw:c.net_abs,refRaw:ref.net_abs,fmt:'num',good:'higher'}
+  ];
+
+  metrics.forEach(met=>{
+   h+='<div class="fo-metric">';
+   h+='<div class="fo-ml">'+met.label+'</div>';
+   h+='<div><span class="fo-mv">'+met.val+'</span>';
+   if(!isRef&&met.val!=='—'){
+    let diff;
+    if(met.fmt==='pct') diff=((met.raw-met.refRaw)*100).toFixed(1);
+    else diff=(met.raw-met.refRaw).toFixed(1);
+    const isGood=(met.good==='higher'&&parseFloat(diff)>0)||(met.good==='lower'&&parseFloat(diff)<0);
+    const isBad=(met.good==='higher'&&parseFloat(diff)<0)||(met.good==='lower'&&parseFloat(diff)>0);
+    const cls=isGood?'pos':isBad?'neg':'neu';
+    const sign=parseFloat(diff)>0?'+':'';
+    h+='<span class="fo-delta '+cls+'">'+sign+diff+(met.fmt==='pct'?'pp':'')+'</span>';
+   }
+   h+='</div></div>';
+  });
+
+  h+='</div>';
+ });
+ h+='</div>';
+
+ h+='<div class="note" style="margin-top:16px;">';
+ if(catchers.length===2){
+  const a=catchers[0],b=catchers[1];
+  const netGap=(b.net_abs-a.net_abs).toFixed(1);
+  h+='<strong>ABS-Era Acquisition Value:</strong> Replacing '+a.name+' with '+b.name+' projects to ';
+  if(parseFloat(netGap)>0) h+='<strong style="color:var(--green);">+'+netGap+' Net ABS runs</strong>';
+  else if(parseFloat(netGap)<0) h+='<strong style="color:var(--neg);">'+netGap+' Net ABS runs</strong>';
+  else h+='<strong>neutral Net ABS change</strong>';
+  h+='.';
+ } else {
+  const best=catchers.reduce((a,b)=>a.net_abs>b.net_abs?a:b);
+  const worst=catchers.reduce((a,b)=>a.net_abs<b.net_abs?a:b);
+  const gap=(best.net_abs-worst.net_abs).toFixed(1);
+  h+='<strong>ABS-Era Range:</strong> '+gap+' Net ABS run spread. '+best.name+' leads ('+(best.net_abs>=0?'+':'')+best.net_abs.toFixed(1)+' runs); '+worst.name+' trails ('+(worst.net_abs>=0?'+':'')+worst.net_abs.toFixed(1)+' runs).';
+ }
+ h+='</div>';
+
+ h+='</div>';
+ el.innerHTML=h;
+}
+
+// ── ABS VALUE TAB ──
+const ABS_PITCHERS=[
+ {name:"Yamamoto, Yoshinobu",team:"LAD",total:173,unch:119,prot:40,cont:10,expsd:4,src:"sc"},
+ {name:"Carlos Rodón",team:"NYY",total:177,unch:113,prot:48,cont:9,expsd:7,src:"est"},
+ {name:"Paul Skenes",team:"PIT",total:165,unch:111,prot:41,cont:8,expsd:5,src:"est"},
+ {name:"Garrett Crochet",team:"BOS",total:173,unch:111,prot:46,cont:9,expsd:7,src:"est"},
+ {name:"Max Fried",team:"NYY",total:171,unch:109,prot:46,cont:9,expsd:7,src:"est"},
+ {name:"Kevin Gausman",team:"TOR",total:167,unch:107,prot:45,cont:8,expsd:7,src:"est"},
+ {name:"Tarik Skubal",team:"DET",total:157,unch:105,prot:39,cont:8,expsd:5,src:"est"},
+ {name:"Logan Webb",team:"SF",total:180,unch:115,prot:49,cont:9,expsd:7,src:"est"},
+ {name:"Hunter Brown",team:"HOU",total:163,unch:104,prot:44,cont:8,expsd:7,src:"est"},
+ {name:"Sandy Alcantara",team:"MIA",total:159,unch:102,prot:43,cont:8,expsd:6,src:"est"},
+ {name:"Nick Pivetta",team:"BOS",total:157,unch:100,prot:43,cont:8,expsd:6,src:"est"},
+ {name:"Freddy Peralta",team:"MIL",total:170,unch:99,prot:52,cont:9,expsd:10,src:"est"},
+ {name:"Luis Severino",team:"NYM",total:150,unch:96,prot:40,cont:8,expsd:6,src:"est"},
+ {name:"Bryan Woo",team:"SEA",total:149,unch:95,prot:40,cont:7,expsd:7,src:"est"},
+ {name:"Luis Castillo",team:"SEA",total:164,unch:95,prot:50,cont:8,expsd:11,src:"est"},
+ {name:"Jacob deGrom",team:"TEX",total:144,unch:92,prot:39,cont:7,expsd:6,src:"est"},
+ {name:"Cristopher Sánchez",team:"PHI",total:159,unch:92,prot:49,cont:8,expsd:10,src:"est"},
+ {name:"Clay Holmes",team:"CLE",total:152,unch:88,prot:46,cont:8,expsd:10,src:"est"},
+ {name:"Zack Wheeler",team:"PHI",total:132,unch:84,prot:36,cont:7,expsd:5,src:"est"},
+ {name:"Zack Littell",team:"TB",total:153,unch:80,prot:49,cont:8,expsd:16,src:"est"},
+ {name:"Sugano, Tomoyuki",team:"LAD",total:107,unch:68,prot:32,cont:7,expsd:0,src:"sc"},
+ {name:"Nathan Eovaldi",team:"TEX",total:106,unch:68,prot:28,cont:5,expsd:5,src:"est"},
+ {name:"Seth Lugo",team:"KC",total:131,unch:68,prot:42,cont:7,expsd:14,src:"est"},
+ {name:"Tyler Anderson",team:"LAA",total:129,unch:59,prot:41,cont:6,expsd:23,src:"est"},
+ {name:"Taijuan Walker",team:"CIN",total:113,unch:52,prot:36,cont:6,expsd:19,src:"est"},
+ {name:"Glasnow, Tyler",team:"LAD",total:70,unch:45,prot:16,cont:4,expsd:5,src:"sc"},
+ {name:"Snell, Blake",team:"LAD",total:68,unch:43,prot:16,cont:7,expsd:2,src:"sc"},
+ {name:"Casparius, Ben",team:"LAD",total:45,unch:31,prot:9,cont:1,expsd:4,src:"sc"},
+ {name:"Sasaki, Roki",team:"LAD",total:41,unch:31,prot:9,cont:1,expsd:0,src:"sc"},
+ {name:"Scott, Tanner",team:"LAD",total:38,unch:24,prot:12,cont:1,expsd:1,src:"sc"},
+ {name:"Díaz, Edwin",team:"LAD",total:38,unch:23,prot:12,cont:1,expsd:2,src:"sc"},
+ {name:"Dreyer, Jack",team:"LAD",total:39,unch:21,prot:14,cont:3,expsd:1,src:"sc"},
+ {name:"Sheehan, Emmet",team:"LAD",total:35,unch:19,prot:14,cont:1,expsd:1,src:"sc"},
+ {name:"Vesia, Alex",team:"LAD",total:32,unch:18,prot:11,cont:2,expsd:1,src:"sc"},
+ {name:"Wrobleski, Justin",team:"LAD",total:30,unch:24,prot:5,cont:1,expsd:0,src:"sc"},
+ {name:"Treinen, Blake",team:"LAD",total:21,unch:14,prot:6,cont:0,expsd:1,src:"sc"},
+ {name:"Klein, Will",team:"LAD",total:12,unch:8,prot:3,cont:1,expsd:0,src:"sc"},
+ {name:"Henriquez, Edgardo",team:"LAD",total:5,unch:5,prot:0,cont:0,expsd:0,src:"sc"},
+];
+
+function initABSValue(){
+ var teams=[...new Set(ABS_PITCHERS.map(function(p){return p.team}))].sort();
+ var tSel=document.getElementById('av-team');
+ tSel.innerHTML='<option value="ALL">All Teams</option>'+teams.map(function(t){return '<option value="'+t+'">'+t+'</option>'}).join('');
+ updateAVPitcherList();
+ buildABSValue();
+}
+function updateAVPitcherList(){
+ var team=document.getElementById('av-team').value;
+ var list=team==='ALL'?ABS_PITCHERS:ABS_PITCHERS.filter(function(p){return p.team===team});
+ var pSel=document.getElementById('av-pitcher');
+ pSel.innerHTML='<option value="ALL">All ('+list.length+')</option>'+list.map(function(p){return '<option value="'+p.name+'">'+p.name+'</option>'}).join('');
+}
+function tierBg(rate){return rate>=0.7?'var(--green-bg)':rate>=0.5?'#fef9c3':'#fee2e2';}
+function tierTx(rate){return rate>=0.7?'var(--green)':rate>=0.5?'#854d0e':'var(--neg)';}
+function buildABSValue(){
+ var team=document.getElementById('av-team').value;
+ var pitcher=document.getElementById('av-pitcher').value;
+ updateAVPitcherList();
+ var rows=ABS_PITCHERS;
+ if(team!=='ALL') rows=rows.filter(function(p){return p.team===team});
+ if(pitcher!=='ALL') rows=rows.filter(function(p){return p.name===pitcher});
+ var tU=0,tP=0,tC=0,tE=0,tT=0;
+ rows.forEach(function(r){tU+=r.unch;tP+=r.prot;tC+=r.cont;tE+=r.expsd;tT+=r.total;});
+ document.getElementById('av-total').textContent=tT.toLocaleString();
+ var h='';
+ h+='<div class="panel" style="margin-top:16px"><div class="panel-head"><span class="dot" style="background:var(--green)"></span> Four-Tier Classification</div>';
+ function avbar(label,n,color){
+  var pct=tT>0?(n/tT*100).toFixed(1):0;
+  return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><div style="width:200px;text-align:right;font-size:12px;font-weight:600">'+label+'</div><div style="flex:1;height:22px;background:var(--bg2);border-radius:4px;overflow:hidden;position:relative"><div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:4px"></div><div style="position:absolute;top:0;left:8px;line-height:22px;font-size:11px;font-weight:600;color:'+(parseFloat(pct)>15?'#fff':'var(--text)')+'">'+n+' ('+pct+'%)</div></div></div>';
+ }
+ h+=avbar('Unchallengeable',tU,'var(--green)');
+ h+=avbar('Overturnable + Protected',tP,'var(--neu)');
+ h+=avbar('Overturnable + Contested',tC,'var(--orange)');
+ h+=avbar('Overturnable + Exposed',tE,'var(--neg)');
+ h+='<div style="display:flex;gap:24px;margin-top:12px;font-size:12px">';
+ h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">Unchallengeable Value</div><strong style="color:var(--green)">'+(tU*0.14).toFixed(1)+' runs preserved</strong></div>';
+ h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">Runs at Risk</div><strong style="color:var(--neg)">'+(tE*0.14).toFixed(1)+' runs exposed</strong></div>';
+ h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">Threat Range</div><strong>'+tE+'–'+(tE+tP)+' CS</strong></div>';
+ h+='</div></div>';
+ h+='<div class="panel" style="margin-top:16px"><div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Per-Pitcher Breakdown</div>';
+ h+='<div style="overflow-x:auto"><table><thead><tr>';
+ ['Pitcher','Team','Shadow','Unch','Unch%','Prot','Cont','Expsd','Exp%','Profile','Runs'].forEach(function(c){
+  h+='<th style="text-align:'+(c==='Pitcher'||c==='Team'?'left':'right')+'">'+c+'</th>';
+ });
+ h+='</tr></thead><tbody>';
+ rows.sort(function(a,b){return b.unch-a.unch}).forEach(function(r){
+  var uPct=r.total>0?(r.unch/r.total*100).toFixed(1):'0.0';
+  var ePct=r.total>0?(r.expsd/r.total*100).toFixed(1):'0.0';
+  var prof=parseFloat(ePct)<=7?'A':parseFloat(ePct)<=13?'B':'C';
+  var pCol=prof==='A'?'var(--green)':prof==='B'?'var(--orange)':'var(--neg)';
+  var est=r.src==='est'?' <span style="font-size:8px;color:var(--text3)">est</span>':'';
+  h+='<tr><td style="font-weight:600">'+r.name+est+'</td><td style="font-size:10px;color:var(--text2)">'+r.team+'</td>';
+  h+='<td style="text-align:right">'+r.total+'</td>';
+  h+='<td style="text-align:right;font-weight:600;color:var(--green)">'+r.unch+'</td>';
+  h+='<td style="text-align:right;font-weight:600;color:var(--green)">'+uPct+'%</td>';
+  h+='<td style="text-align:right;color:var(--text2)">'+r.prot+'</td>';
+  h+='<td style="text-align:right;color:var(--orange)">'+r.cont+'</td>';
+  h+='<td style="text-align:right;font-weight:600;color:var(--neg)">'+r.expsd+'</td>';
+  h+='<td style="text-align:right;color:var(--neg)">'+ePct+'%</td>';
+  h+='<td style="text-align:center"><span style="background:'+pCol+';color:#fff;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700">'+prof+'</span></td>';
+  h+='<td style="text-align:right;font-weight:600;color:var(--green)">'+(r.unch*0.14).toFixed(1)+'</td></tr>';
+ });
+ h+='</tbody></table></div></div>';
+ document.getElementById('av-body').innerHTML=h;
+}
+</script>
+</body>
+</html>
