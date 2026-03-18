@@ -283,7 +283,36 @@
   .pd-summary-row { flex-wrap:wrap; }
   .pd-summary-box { min-width:140px; }
   .abs-grid { grid-template-columns:repeat(2, 1fr); }
+  .zone-grid-wrap { flex-direction:column !important; }
  }
+ /* ── Zone heatmap ── */
+ .zone-grid { display:grid; grid-template-columns:repeat(3,72px); gap:3px; margin:0 auto; }
+ .zone-cell { padding:6px 2px; border-radius:5px; text-align:center; border:1px solid rgba(0,0,0,.06); min-height:48px; display:flex; flex-direction:column; justify-content:center; }
+ .zone-cell .zc-rate { font-family:var(--mono); font-size:13px; font-weight:700; }
+ .zone-cell .zc-n { font-family:var(--mono); font-size:9px; opacity:0.65; }
+ .zone-cell .zc-runs { font-family:var(--mono); font-size:9px; }
+ .zone-cell .zc-label { font-size:8px; text-transform:uppercase; letter-spacing:0.3px; opacity:0.7; }
+ .zone-center { background:var(--bg2); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:var(--text3); letter-spacing:1px; text-transform:uppercase; }
+ .zone-grid-wrap { display:flex; gap:24px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
+ .zone-grid-col { text-align:center; }
+ .zone-grid-col h4 { font-size:11px; color:var(--text2); margin:0 0 8px; font-weight:600; }
+ /* ── Synergy ── */
+ .synergy-score { font-family:var(--mono); font-size:20px; font-weight:700; padding:3px 12px; border-radius:6px; display:inline-block; }
+ .synergy-card { background:var(--bg1); border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:12px; }
+ .synergy-zones { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+ .synergy-zone-tag { font-family:var(--mono); font-size:10px; padding:2px 8px; border-radius:4px; }
+ /* ── Leverage bar ── */
+ .lev-bar { display:flex; height:14px; border-radius:4px; overflow:hidden; }
+ .lev-bar .lev-seg { min-width:2px; }
+ .lev-legend { display:flex; gap:12px; font-family:var(--mono); font-size:10px; color:var(--text2); flex-wrap:wrap; margin-top:4px; }
+ /* ── Comparison ── */
+ .compare-row { display:flex; gap:24px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
+ .compare-col { text-align:center; }
+ /* ── Deployment ── */
+ .deploy-table { width:100%; border-collapse:collapse; font-size:12px; }
+ .deploy-table th { text-align:left; padding:6px 8px; border-bottom:2px solid var(--border); font-size:10px; text-transform:uppercase; color:var(--text3); }
+ .deploy-table td { padding:5px 8px; border-bottom:1px solid var(--border); }
+ .deploy-optimal { background:rgba(22,163,106,0.1); color:var(--green); font-weight:600; padding:2px 6px; border-radius:3px; font-size:11px; }
 </style>
 </head>
 <body>
@@ -370,7 +399,11 @@
     </dl>
 
     <h4>Shadow Zone Definition</h4>
-    <p>The shadow zone is defined as the 2-inch border around the rulebook strike zone — the area where umpire calls are most variable. This is where framing, pitch movement, and sequencing have the greatest impact on called strike probability.</p>
+    <p>Like Statcast, we use each batter's personalized strike zone (sz_top/sz_bot) for the vertical boundaries, and the fixed 17&Prime; plate width for horizontal. But our shadow zone differs from Statcast's zone numbering system in two key ways:</p>
+    <p><strong>1. Ball radius adjustment (ABS true zone).</strong> Statcast measures the <em>center</em> of the ball (plate_x/plate_z). Under ABS, a pitch is a strike if <em>any part</em> of the ball touches the zone. To model this, we expand the zone edges by ball radius (~1.5&Prime;): horizontal at &plusmn;(8.5&Prime; + 1.5&Prime;) = &plusmn;10&Prime; from center, vertical at sz_top + 1.5&Prime; and sz_bot &minus; 1.5&Prime;. This is how ABS determines whether a challenged pitch would be overturned or confirmed. Statcast's zone numbering (1-14) does not include this ball-radius expansion.</p>
+    <p><strong>2. Distance-based shadow band.</strong> The <strong>shadow zone</strong> is all pitches within 3 inches (0.25 ft) of those true zone edges &mdash; from either side. This captures pitches just outside the zone (where catchers frame for stolen strikes) and pitches just inside (where umpires sometimes miss calls). Statcast's shadow zones (11-14, 16-19) use grid regions that extend further out and don't distinguish inside-edge vs outside-edge pitches.</p>
+    <p>The zone is split into four edges (Inside, Outside, Top, Bottom) based on which true zone edge the pitch is nearest to. For the 8-zone grid view, we classify shadow pitches into zones 11-19 by position relative to zone corners and sides, matching the Statcast numbering convention.</p>
+    <p><strong>Note on strike zone data:</strong> All years (2021-2025) use Statcast's operator-measured <code>sz_top</code>/<code>sz_bot</code>, set per-pitch when the ball is halfway to the plate. Hawk-Eye tracked strike zone measurements are expected in 2026 Statcast data. MLB's ABS challenge system uses separate formula-based boundaries (53.5% and 27% of batter height) not yet in public tracking data. Our USS/ULS model uses the Statcast operator values as the best available approximation of where ABS challenges would apply.</p>
     
     <h4>Umpire Stolen Strikes (USS)</h4>
     <p>USS measures strikes called on pitches that were actually <strong>outside</strong> the true zone — value the offense loses. Not all stolen strikes are equal — we weight them by game state using RE288 (run expectancy by count and base-out state).</p>
@@ -540,6 +573,16 @@
     <div id="p-catchers"></div>
    </div>
    <div class="panel" style="margin-top:16px;">
+    <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Shadow Zone Distribution</div>
+    <div class="panel-desc">Where this pitcher lands shadow zone pitches by batter hand.</div>
+    <div id="p-zone-dist"></div>
+   </div>
+   <div class="panel" style="margin-top:16px;">
+    <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Synergy</div>
+    <div class="panel-desc">Synergy scores with this pitcher's catchers.</div>
+    <div id="p-synergy"></div>
+   </div>
+   <div class="panel" style="margin-top:16px;">
     <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Scouting Note</div>
     <div class="note" id="p-note"></div>
    </div>
@@ -580,15 +623,43 @@
      </div>
     </div>
     <div class="panel" style="margin-top:16px;">
-     <div class="panel-head"><span class="dot" style="background:var(--orange)"></span> Savant Framing</div>
-     <div class="panel-desc">Run values and CS% by shadow zone region (Baseball Savant catcher framing).</div>
-     <div id="c-framing"></div>
+     <div class="panel-head"><span class="dot" style="background:var(--orange)"></span> Zone Profile</div>
+     <div class="panel-desc">Called strike rates by shadow zone (8-zone grid) vs league average.</div>
+     <div style="margin-bottom:8px">
+      <button class="mu-btn on" onclick="setCZoneHand('rhh',this)">vs RHH</button>
+      <button class="mu-btn" onclick="setCZoneHand('lhh',this)">vs LHH</button>
+     </div>
+     <div class="zone-grid-wrap">
+      <div class="zone-grid-col"><div id="c-zone-grid"></div></div>
+     </div>
+     <div id="c-zone-table"></div>
+     <div id="c-framing" style="margin-top:12px"></div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+     <div class="panel-head"><span class="dot" style="background:var(--blue)"></span> Pitcher-Catcher Synergy</div>
+     <div class="panel-desc">Select a pitcher to see zone-level synergy overlay.</div>
+     <div style="margin-bottom:8px">
+      <select id="c-synergy-pitcher" onchange="updateCSynergy()" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px">
+       <option value="">Select pitcher…</option>
+      </select>
+     </div>
+     <div id="c-synergy-body"><span style="color:var(--text3);font-size:11px">Select a pitcher above.</span></div>
     </div>
     <div class="panel" style="margin-top:16px;">
      <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Framing Note</div>
      <div class="note" id="c-note"></div>
     </div>
     <div id="c-abs"></div>
+   </div>
+   <div id="c-compare" class="hidden" style="margin-top:16px;">
+    <div class="panel">
+     <div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Catcher Zone Comparison</div>
+     <div style="margin-bottom:8px">
+      <button class="mu-btn on" onclick="setCCompareHand('rhh',this)">vs RHH</button>
+      <button class="mu-btn" onclick="setCCompareHand('lhh',this)">vs LHH</button>
+     </div>
+     <div id="c-compare-body"></div>
+    </div>
    </div>
   </div>
 
@@ -622,6 +693,16 @@
    </div>
    <div id="fo-leaderboard"></div>
    <div id="fo-compare" class="hidden"></div>
+   <div class="panel" style="margin-top:16px;">
+    <div class="panel-head"><span class="dot" style="background:var(--green)"></span> Catcher Deployment Recommendations</div>
+    <div class="panel-desc">Optimal catcher assignment per pitcher based on zone-level synergy scoring.</div>
+    <div class="controls" style="margin-bottom:8px">
+     <select id="fo-deploy-team" onchange="buildDeployment()" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px">
+      <option value="ALL">All Teams</option>
+     </select>
+    </div>
+    <div id="fo-deployment"></div>
+   </div>
   </div>
 
   <!-- ── ABS VALUE ── -->
@@ -653,6 +734,252 @@ var pitcherToCatchers={};
 var foSelected=new Set();
 var foSortCol='net_abs',foSortDir='desc';
 var cSortCol='net_abs',cSortDir='desc';
+var curCZoneHand='rhh';
+var curCSynergyPitcher=null;
+var cCompareA=null,cCompareB=null;
+
+// ── Zone constants ──
+var ALL_ZONES=[11,12,13,14,16,17,18,19];
+var ZONE_META={11:{label:"Top-L",side:"glove"},12:{label:"Top-R",side:"backhand"},13:{label:"Top",side:"center"},14:{label:"Mid-R",side:"backhand"},16:{label:"Mid-L",side:"glove"},17:{label:"Bot-L",side:"glove"},18:{label:"Bot",side:"center"},19:{label:"Bot-R",side:"backhand"}};
+// Grid order: [11][13][12] / [16][center][14] / [17][18][19]
+var ZONE_GRID=[[11,13,12],[16,null,14],[17,18,19]];
+var RUNS_PER_CS=0.14;
+
+function vsAvgColor(delta){
+ var spread=0.15,t=Math.max(-1,Math.min(1,delta/spread));
+ if(t<0){var s=-t;return 'rgb('+Math.round(255-(255-33)*s)+','+Math.round(255-(255-102)*s)+','+Math.round(255-(255-172)*s)+')';}
+ var s2=t;return 'rgb('+Math.round(255-(255-214)*s2)+','+Math.round(255-(255-48)*s2)+','+Math.round(255-(255-49)*s2)+')';
+}
+function vsAvgText(delta){return Math.abs(delta)/0.15>0.6?'#fff':'#333';}
+function synergyColor(score){return score>=65?'var(--green)':score>=40?'var(--orange)':'var(--neg)';}
+function synergyBg(score){return score>=65?'rgba(22,163,106,0.12)':score>=40?'rgba(217,119,6,0.12)':'rgba(220,38,38,0.12)';}
+
+function zoneGridLegend(){
+ return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--text3);margin-bottom:4px;padding:0 2px">'
+  +'<span style="font-weight:600">\u2190 Glove (3B)</span>'
+  +'<span style="font-weight:600">Arm (1B) \u2192</span>'
+  +'</div>';
+}
+
+function renderZoneGrid(data,hand,lgAvg,opts){
+ if(!data||!data[hand])return '<span style="color:var(--text3);font-size:11px">No zone data for '+(hand==='rhh'?'RHH':'LHH')+'</span>';
+ var zd=data[hand].zones,lg=lgAvg?lgAvg[hand]:{},h=zoneGridLegend()+'<div class="zone-grid">';
+ ZONE_GRID.forEach(function(row){row.forEach(function(z){
+  if(z===null){h+='<div class="zone-center">ZONE</div>';return;}
+  var zk=''+z,cell=zd[zk],meta=ZONE_META[z];
+  if(!cell){h+='<div class="zone-cell" style="background:var(--bg2)"><span class="zc-label">'+meta.label+'</span><span class="zc-rate" style="color:var(--text3)">—</span></div>';return;}
+  var rate=cell.cs_rate,lgr=parseFloat(lg[zk]||rate),delta=rate-lgr;
+  var bg=vsAvgColor(delta),fg=vsAvgText(delta);
+  h+='<div class="zone-cell" style="background:'+bg+';color:'+fg+'">';
+  h+='<span class="zc-label">'+meta.label+'</span>';
+  h+='<span class="zc-rate">'+(rate*100).toFixed(1)+'%</span>';
+  h+='<span class="zc-n">n='+cell.n+'</span>';
+  if(cell.runs!==undefined)h+='<span class="zc-runs" style="color:'+(cell.runs>=0?'inherit':'inherit')+'">'+(cell.runs>=0?'+':'')+cell.runs.toFixed(1)+' rv</span>';
+  h+='</div>';
+ });});
+ h+='</div>';
+ return h;
+}
+
+function renderZoneTable(data,hand,lgAvg){
+ if(!data||!data[hand])return '';
+ var zd=data[hand].zones,lg=lgAvg?lgAvg[hand]:{};
+ var h='<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:10px"><thead><tr>';
+ ['Zone','Location','Side','CS%','Lg Avg','vs Avg','Runs'].forEach(function(c){h+='<th style="text-align:left;padding:4px 6px;border-bottom:2px solid var(--border);font-size:9px;text-transform:uppercase;color:var(--text3)">'+c+'</th>';});
+ h+='</tr></thead><tbody>';
+ ALL_ZONES.forEach(function(z){
+  var zk=''+z,cell=zd[zk],meta=ZONE_META[z];if(!cell)return;
+  var rate=cell.cs_rate,lgr=parseFloat(lg[zk]||rate),delta=rate-lgr;
+  var dCol=delta>=0?'var(--green)':'var(--neg)';
+  h+='<tr><td style="padding:4px 6px;font-family:var(--mono);font-weight:600">'+z+'</td>';
+  h+='<td style="padding:4px 6px">'+meta.label+'</td>';
+  h+='<td style="padding:4px 6px;font-size:10px;color:var(--text2)">'+meta.side+'</td>';
+  h+='<td style="padding:4px 6px;font-family:var(--mono);font-weight:600">'+(rate*100).toFixed(1)+'%</td>';
+  h+='<td style="padding:4px 6px;font-family:var(--mono);color:var(--text2)">'+(lgr*100).toFixed(1)+'%</td>';
+  h+='<td style="padding:4px 6px;font-family:var(--mono);color:'+dCol+'">'+(delta>=0?'+':'')+(delta*100).toFixed(1)+'</td>';
+  h+='<td style="padding:4px 6px;font-family:var(--mono);color:'+dCol+'">'+(cell.runs>=0?'+':'')+cell.runs.toFixed(1)+'</td></tr>';
+ });
+ h+='</tbody></table>';
+ return h;
+}
+
+function renderSynergyGrid(catcherName,pitcherName,hand){
+ var cz=D.catcherZoneProfile&&D.catcherZoneProfile[catcherName];
+ var pz=D.pitcherZoneProfile&&D.pitcherZoneProfile[pitcherName];
+ if(!cz||!pz||!cz[hand]||!pz[hand])return '<span style="color:var(--text3);font-size:11px">No synergy data for this pair.</span>';
+ var cd=cz[hand].zones,pd=pz[hand].zones,lg=D.leagueAvgZones?D.leagueAvgZones[hand]:{};
+ var maxExp=0;
+ ALL_ZONES.forEach(function(z){var zk=''+z,n=pd[zk]||0,r=(cd[zk]&&cd[zk].cs_rate)||0;var e=n*r;if(e>maxExp)maxExp=e;});
+ var h=zoneGridLegend()+'<div class="zone-grid">';
+ ZONE_GRID.forEach(function(row){row.forEach(function(z){
+  if(z===null){h+='<div class="zone-center">ZONE</div>';return;}
+  var zk=''+z,meta=ZONE_META[z],n=pd[zk]||0,cell=cd[zk],rate=cell?cell.cs_rate:0;
+  var exp=n*rate,intensity=maxExp>0?exp/maxExp:0;
+  var bg='rgba(22,163,106,'+Math.max(0.05,intensity*0.7).toFixed(2)+')';
+  h+='<div class="zone-cell" style="background:'+bg+'">';
+  h+='<span class="zc-label">'+meta.label+'</span>';
+  h+='<span class="zc-rate">'+(rate*100).toFixed(1)+'%</span>';
+  h+='<span class="zc-n">'+n+' pitches</span>';
+  h+='<span class="zc-runs">'+exp.toFixed(1)+' xCS</span>';
+  h+='</div>';
+ });});
+ h+='</div>';
+ return h;
+}
+
+function renderLeverageBar(pitcherName){
+ var pm=D.pitcherMeta&&D.pitcherMeta[pitcherName];
+ if(!pm||!pm.leverageTiers)return '';
+ var lt=pm.leverageTiers,total=lt.totalCS;if(!total)return '';
+ var pp=lt.protected/total*100,cp=lt.contested/total*100,ep=lt.exposed/total*100;
+ var h='<div class="lev-bar">';
+ h+='<div class="lev-seg" style="width:'+pp+'%;background:var(--green)" title="Protected: '+lt.protected+'"></div>';
+ h+='<div class="lev-seg" style="width:'+cp+'%;background:var(--orange)" title="Contested: '+lt.contested+'"></div>';
+ h+='<div class="lev-seg" style="width:'+ep+'%;background:var(--neg)" title="Exposed: '+lt.exposed+'"></div>';
+ h+='</div>';
+ h+='<div class="lev-legend">';
+ h+='<span><span style="color:var(--green)">&#9632;</span> Protected '+lt.protected+' ('+pp.toFixed(0)+'%)</span>';
+ h+='<span><span style="color:var(--orange)">&#9632;</span> Contested '+lt.contested+' ('+cp.toFixed(0)+'%)</span>';
+ h+='<span><span style="color:var(--neg)">&#9632;</span> Exposed '+lt.exposed+' ('+ep.toFixed(0)+'%)</span>';
+ h+='</div>';
+ return h;
+}
+
+function renderSynergyCard(catcherName,pitcherName){
+ var key=pitcherName+'|'+catcherName;
+ var syn=D.synergyScores&&D.synergyScores[key];
+ if(!syn)return '';
+ var sc=syn.score,col=synergyColor(sc),bg=synergyBg(sc);
+ var h='<div class="synergy-card">';
+ h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">';
+ h+='<span class="synergy-score" style="background:'+bg+';color:'+col+'">'+sc+'</span>';
+ h+='<div><div style="font-weight:600;font-size:13px">'+pitcherName+' × '+catcherName+'</div>';
+ h+='<div style="font-size:11px;color:var(--text2)">'+syn.totalExpectedCS.toFixed(1)+' xCS on '+syn.totalPitches+' pitches</div></div></div>';
+ // Hand breakdown
+ if(syn.byHand){
+  h+='<div style="display:flex;gap:16px;font-size:11px;margin-bottom:8px">';
+  if(syn.byHand.rhh)h+='<span>vs RHH: <strong>'+syn.byHand.rhh.expectedCS.toFixed(1)+'</strong> xCS ('+syn.byHand.rhh.pitches+' P)</span>';
+  if(syn.byHand.lhh)h+='<span>vs LHH: <strong>'+syn.byHand.lhh.expectedCS.toFixed(1)+'</strong> xCS ('+syn.byHand.lhh.pitches+' P)</span>';
+  h+='</div>';
+ }
+ // Top zones
+ if(syn.topZones&&syn.topZones.length){
+  h+='<div style="font-size:10px;color:var(--text2);margin-bottom:3px">Top synergy zones:</div>';
+  h+='<div class="synergy-zones">';
+  syn.topZones.forEach(function(tz){
+   h+='<span class="synergy-zone-tag" style="background:rgba(22,163,106,0.12);color:var(--green)">Z'+tz.zone+' '+tz.hand.toUpperCase()+' — '+(tz.rate*100).toFixed(0)+'% × '+tz.pitches+'P = '+tz.expectedCS.toFixed(1)+'xCS</span>';
+  });
+  h+='</div>';
+ }
+ // Bottom zones
+ if(syn.botZones&&syn.botZones.length){
+  h+='<div style="font-size:10px;color:var(--text2);margin:6px 0 3px">Weak zones:</div>';
+  h+='<div class="synergy-zones">';
+  syn.botZones.forEach(function(bz){
+   h+='<span class="synergy-zone-tag" style="background:rgba(220,38,38,0.08);color:var(--neg)">Z'+bz.zone+' '+bz.hand.toUpperCase()+' — '+(bz.rate*100).toFixed(0)+'% × '+bz.pitches+'P</span>';
+  });
+  h+='</div>';
+ }
+ // Leverage bar
+ h+='<div style="margin-top:10px">'+renderLeverageBar(pitcherName)+'</div>';
+ h+='</div>';
+ return h;
+}
+
+function renderDeltaGrid(dataA,dataB,hand,lgAvg){
+ if(!dataA||!dataB||!dataA[hand]||!dataB[hand])return '';
+ var za=dataA[hand].zones,zb=dataB[hand].zones;
+ var h='<div class="zone-grid">';
+ ZONE_GRID.forEach(function(row){row.forEach(function(z){
+  if(z===null){h+='<div class="zone-center">DELTA</div>';return;}
+  var zk=''+z,ca=za[zk],cb=zb[zk];
+  if(!ca||!cb){h+='<div class="zone-cell" style="background:var(--bg2)"><span class="zc-rate" style="color:var(--text3)">—</span></div>';return;}
+  var delta=ca.cs_rate-cb.cs_rate,bg=vsAvgColor(delta),fg=vsAvgText(delta);
+  h+='<div class="zone-cell" style="background:'+bg+';color:'+fg+'">';
+  h+='<span class="zc-label">'+ZONE_META[z].label+'</span>';
+  h+='<span class="zc-rate">'+(delta>=0?'+':'')+(delta*100).toFixed(1)+'</span>';
+  h+='</div>';
+ });});
+ h+='</div>';
+ return h;
+}
+
+// Wrapper used by synergy overlay hand columns
+function renderSynergyGridLabeled(catcherName,pitcherName,hand){
+ return zoneGridLegend()+renderSynergyGrid(catcherName,pitcherName,hand);
+}
+
+function renderDeploymentSection(team){
+ if(!D.deploymentRecs)return '';
+ var recs=D.deploymentRecs,keys=Object.keys(recs);
+ if(team&&team!=='ALL')keys=keys.filter(function(k){var pm=D.pitcherMeta&&D.pitcherMeta[k];return pm&&pm.team===team;});
+ keys.sort(function(a,b){return recs[b].edge-recs[a].edge;});
+ if(!keys.length)return '<span style="color:var(--text3);font-size:11px">No deployment data.</span>';
+ var h='<table class="deploy-table"><thead><tr>';
+ ['Pitcher','Team','Optimal Catcher','Score','2nd Catcher','Score','Edge','Runs'].forEach(function(c){h+='<th>'+c+'</th>';});
+ h+='</tr></thead><tbody>';
+ keys.slice(0,50).forEach(function(pname){
+  var r=recs[pname],pm=D.pitcherMeta&&D.pitcherMeta[pname];
+  var sc=r.scores,catchers=Object.keys(sc).sort(function(a,b){return sc[b]-sc[a];});
+  var c1=catchers[0]||'—',c2=catchers[1]||'—';
+  h+='<tr><td style="font-weight:600">'+pname+'</td>';
+  h+='<td>'+(pm?pm.team:'')+'</td>';
+  h+='<td><span class="deploy-optimal">'+c1+'</span></td>';
+  h+='<td style="font-family:var(--mono)">'+sc[c1]+'</td>';
+  h+='<td>'+c2+'</td>';
+  h+='<td style="font-family:var(--mono)">'+(sc[c2]||'—')+'</td>';
+  h+='<td style="font-family:var(--mono);font-weight:600;color:var(--green)">+'+r.edge+'</td>';
+  h+='<td style="font-family:var(--mono);color:var(--green)">+'+(r.runs).toFixed(2)+'</td></tr>';
+ });
+ h+='</tbody></table>';
+ return h;
+}
+
+function buildDeployment(){
+ var sel=document.getElementById('fo-deploy-team');
+ var team=sel?sel.value:'ALL';
+ var el=document.getElementById('fo-deployment');
+ if(el)el.innerHTML=renderDeploymentSection(team);
+}
+
+function setCCompareHand(hand,btn){
+ if(btn){btn.parentNode.querySelectorAll('.mu-btn').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');}
+ var el=document.getElementById('c-compare-body');
+ if(!el||!cCompareA||!cCompareB)return;
+ var da=D.catcherZoneProfile&&D.catcherZoneProfile[cCompareA];
+ var db=D.catcherZoneProfile&&D.catcherZoneProfile[cCompareB];
+ var h='<div class="compare-row">';
+ h+='<div class="compare-col"><h4>'+cCompareA+'</h4>'+renderZoneGrid(da,hand,D.leagueAvgZones)+'</div>';
+ h+='<div class="compare-col"><h4>Delta</h4>'+renderDeltaGrid(da,db,hand,D.leagueAvgZones)+'</div>';
+ h+='<div class="compare-col"><h4>'+cCompareB+'</h4>'+renderZoneGrid(db,hand,D.leagueAvgZones)+'</div>';
+ h+='</div>';
+ el.innerHTML=h;
+}
+
+function setCZoneHand(hand,btn){
+ curCZoneHand=hand;
+ if(btn){btn.parentNode.querySelectorAll('.mu-btn').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');}
+ var name=curC;if(!name)return;
+ var el=document.getElementById('c-zone-grid');
+ var el2=document.getElementById('c-zone-table');
+ if(el)el.innerHTML=renderZoneGrid(D.catcherZoneProfile&&D.catcherZoneProfile[name],hand,D.leagueAvgZones);
+ if(el2)el2.innerHTML=renderZoneTable(D.catcherZoneProfile&&D.catcherZoneProfile[name],hand,D.leagueAvgZones);
+}
+
+function updateCSynergy(){
+ var sel=document.getElementById('c-synergy-pitcher');
+ var pname=sel?sel.value:'';
+ var body=document.getElementById('c-synergy-body');
+ if(!body)return;
+ if(!pname){body.innerHTML='<span style="color:var(--text3);font-size:11px">Select a pitcher above.</span>';return;}
+ curCSynergyPitcher=pname;
+ var h='<div class="zone-grid-wrap">';
+ h+='<div class="zone-grid-col"><h4>vs RHH</h4>'+renderSynergyGridLabeled(curC,pname,'rhh')+'</div>';
+ h+='<div class="zone-grid-col"><h4>vs LHH</h4>'+renderSynergyGridLabeled(curC,pname,'lhh')+'</div>';
+ h+='</div>';
+ h+=renderSynergyCard(curC,pname);
+ body.innerHTML=h;
+}
 
 function toggleGlossary(){
  document.getElementById('glossary-overlay').classList.toggle('hidden');
@@ -859,9 +1186,10 @@ function netAbsBadge(netAbs){
 var currentYear=2025;
 
 async function loadYear(year){
+ var cb='?v='+Date.now();
  for(const base of ['./shadow-zone/','./']){
   try{
-   const r=await fetch(base+'shadow_zone_'+year+'_full.json');
+   const r=await fetch(base+'shadow_zone_'+year+'_full.json'+cb);
    if(r.ok) return await r.json();
   }catch(e){}
  }
@@ -942,9 +1270,9 @@ function boot(){
   st('Shadow Zone',s.total_shadow.toLocaleString(),s.shadow_pct+'% of all'),
   st('Called Decisions',s.total_shadow_called.toLocaleString(),'shadow takes'),
   st('CS Rate',pc(s.overall_cs_rate),'league avg'),
-  st('USS Runs','<span style="color:var(--neg)">−'+(s.uss_runs_total||0).toFixed(0)+'</span>',((s.stolen_strikes_total||0).toLocaleString())+' stolen'),
-  st('ULS Runs','<span style="color:var(--green)">+'+(s.uls_runs_total||0).toFixed(0)+'</span>',((s.lost_strikes_total||0).toLocaleString())+' lost'),
-  st('Net ABS','<span style="color:'+netAbsCol+'">'+(netAbsTotal>=0?'+':'')+netAbsTotal.toFixed(0)+'</span>','runs to defense'),
+  st('USS Runs','<span style="color:var(--neg)">−'+(s.uss_runs_total||0).toFixed(0)+'</span>',((s.stolen_strikes_total||0).toLocaleString())+' stolen · all pitchers'),
+  st('ULS Runs','<span style="color:var(--green)">+'+(s.uls_runs_total||0).toFixed(0)+'</span>',((s.lost_strikes_total||0).toLocaleString())+' lost · all pitchers'),
+  st('Net ABS','<span style="color:'+netAbsCol+'">'+(netAbsTotal>=0?'+':'')+netAbsTotal.toFixed(0)+'</span>','all pitchers · league total'),
  ].join('');
 
  document.querySelectorAll('#tb .tab').forEach(b=>{
@@ -965,11 +1293,14 @@ function boot(){
 
  if(D.catcherMeta){
   const cTeams=[...new Set(Object.values(D.catcherMeta).map(m=>m.team))].sort();
-  ['c-team','pd-team'].forEach(id=>{
+  ['c-team','pd-team','fo-deploy-team'].forEach(id=>{
    const el=document.getElementById(id);
    if(el) el.innerHTML='<option value="ALL">All Teams</option>'+cTeams.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
   });
  }
+
+ // Build deployment section
+ if(D.deploymentRecs) buildDeployment();
 
  const allTeams=[...new Set([
   ...Object.values(D.pitcherMeta).map(m=>m.team),
@@ -1267,6 +1598,54 @@ function selP(name,btn){
   document.getElementById('p-catchers').innerHTML='<span style="color:var(--text3);font-size:12px">No battery split data (needs 2+ catchers with 30+ decisions each).</span>';
  }
  
+ // Pitcher zone distribution
+ var pzp=D.pitcherZoneProfile&&D.pitcherZoneProfile[name];
+ if(pzp){
+  var pzh='<div class="zone-grid-wrap">';
+  if(pzp.rhh){
+   pzh+='<div class="zone-grid-col"><h4>vs RHH ('+pzp.rhh.total+' pitches)</h4>'+zoneGridLegend()+'<div class="zone-grid">';
+   var maxR=0;ALL_ZONES.forEach(function(z){var n=pzp.rhh.zones[''+z]||0;if(n>maxR)maxR=n;});
+   ZONE_GRID.forEach(function(row){row.forEach(function(z){
+    if(z===null){pzh+='<div class="zone-center">ZONE</div>';return;}
+    var n=pzp.rhh.zones[''+z]||0,pct=pzp.rhh.total>0?(n/pzp.rhh.total*100).toFixed(1):'0';
+    var intensity=maxR>0?n/maxR:0;
+    pzh+='<div class="zone-cell" style="background:rgba(37,99,235,'+Math.max(0.05,intensity*0.6).toFixed(2)+')"><span class="zc-label">'+ZONE_META[z].label+'</span><span class="zc-rate">'+n+'</span><span class="zc-n">'+pct+'%</span></div>';
+   });});
+   pzh+='</div></div>';
+  }
+  if(pzp.lhh){
+   pzh+='<div class="zone-grid-col"><h4>vs LHH ('+pzp.lhh.total+' pitches)</h4>'+zoneGridLegend()+'<div class="zone-grid">';
+   var maxL=0;ALL_ZONES.forEach(function(z){var n=pzp.lhh.zones[''+z]||0;if(n>maxL)maxL=n;});
+   ZONE_GRID.forEach(function(row){row.forEach(function(z){
+    if(z===null){pzh+='<div class="zone-center">ZONE</div>';return;}
+    var n=pzp.lhh.zones[''+z]||0,pct=pzp.lhh.total>0?(n/pzp.lhh.total*100).toFixed(1):'0';
+    var intensity=maxL>0?n/maxL:0;
+    pzh+='<div class="zone-cell" style="background:rgba(37,99,235,'+Math.max(0.05,intensity*0.6).toFixed(2)+')"><span class="zc-label">'+ZONE_META[z].label+'</span><span class="zc-rate">'+n+'</span><span class="zc-n">'+pct+'%</span></div>';
+   });});
+   pzh+='</div></div>';
+  }
+  pzh+='</div>';
+  document.getElementById('p-zone-dist').innerHTML=pzh;
+ }else{
+  document.getElementById('p-zone-dist').innerHTML='<span style="color:var(--text3);font-size:11px">No zone distribution data.</span>';
+ }
+
+ // Pitcher synergy with catchers
+ if(catchers&&catchers.length&&D.synergyScores){
+  var synh='';
+  var sortedSyn=catchers.map(function(c){
+   var key=name+'|'+c.catcher;return{catcher:c.catcher,syn:D.synergyScores[key]};
+  }).filter(function(x){return x.syn;}).sort(function(a,b){return b.syn.score-a.syn.score;});
+  if(sortedSyn.length){
+   sortedSyn.forEach(function(x){synh+=renderSynergyCard(x.catcher,name);});
+   document.getElementById('p-synergy').innerHTML=synh;
+  }else{
+   document.getElementById('p-synergy').innerHTML='<span style="color:var(--text3);font-size:11px">No synergy data for this pitcher\'s catchers.</span>';
+  }
+ }else{
+  document.getElementById('p-synergy').innerHTML='<span style="color:var(--text3);font-size:11px">No synergy data.</span>';
+ }
+
  const absImpact = calcABSImpact(m);
  document.getElementById('p-abs').innerHTML = renderABSProjection(absImpact, 'pitcher');
 }
@@ -1492,14 +1871,38 @@ function selC(name){
   fh+='</div>';
   document.getElementById('c-framing').innerHTML=fh;
  }else{
-  document.getElementById('c-framing').innerHTML='<span style="color:var(--text3);font-size:12px">No Savant framing data available for this catcher.</span>';
+  document.getElementById('c-framing').innerHTML='';
  }
 
+ // Zone profile heatmap
+ var zoneProfile=D.catcherZoneProfile&&D.catcherZoneProfile[name];
+ if(zoneProfile){
+  curCZoneHand='rhh';
+  document.getElementById('c-zone-grid').innerHTML=renderZoneGrid(zoneProfile,'rhh',D.leagueAvgZones);
+  document.getElementById('c-zone-table').innerHTML=renderZoneTable(zoneProfile,'rhh',D.leagueAvgZones);
+ }else{
+  document.getElementById('c-zone-grid').innerHTML='<span style="color:var(--text3);font-size:11px">No zone profile data.</span>';
+  document.getElementById('c-zone-table').innerHTML='';
+ }
+
+ // Populate synergy pitcher dropdown
+ var synSel=document.getElementById('c-synergy-pitcher');
+ if(synSel){
+  synSel.innerHTML='<option value="">Select pitcher…</option>';
+  if(pairs&&pairs.length){
+   var sorted2=[...pairs].sort(function(a,b){return b.n-a.n;});
+   sorted2.forEach(function(p){
+    synSel.innerHTML+='<option value="'+esc(p.pitcher)+'">'+p.pitcher+' ('+p.n+')</option>';
+   });
+  }
+ }
+ document.getElementById('c-synergy-body').innerHTML='<span style="color:var(--text3);font-size:11px">Select a pitcher above.</span>';
+
  document.getElementById('c-note').innerHTML=genCNote(name,m,edges,pairs,avg);
- 
+
  const absImpact = calcABSImpact(m);
  document.getElementById('c-abs').innerHTML = renderABSProjection(absImpact, 'catcher');
- 
+
  document.getElementById('c-detail').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -1932,7 +2335,7 @@ function buildABSValue(){
  rows.forEach(function(r){tU+=r.unch;tP+=r.prot;tC+=r.cont;tE+=r.expsd;tT+=r.total;tUssR+=r.uss_runs;tUlsR+=r.uls_runs;});
  document.getElementById('av-total').textContent=tT.toLocaleString();
  var h='';
- h+='<div class="panel" style="margin-top:16px"><div class="panel-head"><span class="dot" style="background:var(--green)"></span> ABS Tier Classification — '+rows.length+' Pitchers</div>';
+ h+='<div class="panel" style="margin-top:16px"><div class="panel-head"><span class="dot" style="background:var(--green)"></span> ABS Tier Classification — '+rows.length+' Pitchers <span style="font-size:10px;font-weight:400;color:var(--text3)">(min 30 shadow decisions)</span></div>';
  function avbar(label,n,color){
   var pct=tT>0?(n/tT*100).toFixed(1):0;
   return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><div style="width:200px;text-align:right;font-size:12px;font-weight:600">'+label+'</div><div style="flex:1;height:22px;background:var(--bg2);border-radius:4px;overflow:hidden;position:relative"><div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:4px"></div><div style="position:absolute;top:0;left:8px;line-height:22px;font-size:11px;font-weight:600;color:'+(parseFloat(pct)>15?'#fff':'var(--text)')+'">'+n.toLocaleString()+' ('+pct+'%)</div></div></div>';
