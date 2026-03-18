@@ -6,7 +6,7 @@ Pitch sequence effects, platoon edge vulnerability, and ABS challenge impact acr
 
 ## What It Does
 
-Analyzes every called pitch in the shadow zone — the 3-inch band around the true strike zone edge — to quantify:
+Analyzes every called pitch in the buffer zone around the true strike zone edge to quantify:
 
 - **Umpire Stolen Strikes (USS):** Called strikes on pitches actually outside the zone, weighted by game-state run expectancy (RE288). These are framing gains that "survive" ABS because challenging them has negative expected value.
 - **Umpire Lost Strikes (ULS):** Called balls on pitches actually inside the zone, also RE288-weighted. Under ABS, the defense can challenge these to recover value.
