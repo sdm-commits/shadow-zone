@@ -1457,7 +1457,10 @@ function setMU(mu,btn){
  const ld=D.leagueMatchupEdges[mu]||{};
  const d=isTeam&&D.teamMatchupEdges&&D.teamMatchupEdges[team]?D.teamMatchupEdges[team][mu]||{}:ld;
  const es=['inside','outside','top','bottom'];
- const ids={inside:'ez-in',outside:'ez-out',top:'ez-top',bottom:'ez-bot'};
+ // For LHB, inside edge is on 1B side (right on map); for RHB, inside is on 3B side (left)
+ const batHand=mu.split('_vs_')[1];
+ const flipIO=batHand==='LHB';
+ const ids={inside:flipIO?'ez-out':'ez-in',outside:flipIO?'ez-in':'ez-out',top:'ez-top',bottom:'ez-bot'};
 
  es.forEach(e=>{
   const el=document.getElementById(ids[e]);
