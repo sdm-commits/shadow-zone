@@ -31,7 +31,7 @@ Analyzes every called pitch in the buffer zone around the true strike zone edge 
 
 ## Shadow Zone Definition
 
-Our shadow zone is **not** the same as Statcast's zone numbering (zones 11-14, 16-19), which uses fixed grid regions. We compute it geometrically:
+Our shadow zone is computed geometrically:
 
 1. **Ball radius adjustment.** Statcast tracks the ball center (`plate_x`/`plate_z`). Under ABS, a pitch is a strike if *any part* of the ball touches the zone. We expand zone edges by ball radius (~1.5 in) to model this — matching how ABS determines whether a challenged pitch is overturned or confirmed.
 
