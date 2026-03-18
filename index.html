@@ -1883,90 +1883,72 @@ function buildFOCompare(){
 }
 
 // ── ABS VALUE TAB ──
-const ABS_PITCHERS=[
- {name:"Yamamoto, Yoshinobu",team:"LAD",total:173,unch:119,prot:40,cont:10,expsd:4,src:"sc"},
- {name:"Carlos Rodón",team:"NYY",total:177,unch:113,prot:48,cont:9,expsd:7,src:"est"},
- {name:"Paul Skenes",team:"PIT",total:165,unch:111,prot:41,cont:8,expsd:5,src:"est"},
- {name:"Garrett Crochet",team:"BOS",total:173,unch:111,prot:46,cont:9,expsd:7,src:"est"},
- {name:"Max Fried",team:"NYY",total:171,unch:109,prot:46,cont:9,expsd:7,src:"est"},
- {name:"Kevin Gausman",team:"TOR",total:167,unch:107,prot:45,cont:8,expsd:7,src:"est"},
- {name:"Tarik Skubal",team:"DET",total:157,unch:105,prot:39,cont:8,expsd:5,src:"est"},
- {name:"Logan Webb",team:"SF",total:180,unch:115,prot:49,cont:9,expsd:7,src:"est"},
- {name:"Hunter Brown",team:"HOU",total:163,unch:104,prot:44,cont:8,expsd:7,src:"est"},
- {name:"Sandy Alcantara",team:"MIA",total:159,unch:102,prot:43,cont:8,expsd:6,src:"est"},
- {name:"Nick Pivetta",team:"BOS",total:157,unch:100,prot:43,cont:8,expsd:6,src:"est"},
- {name:"Freddy Peralta",team:"MIL",total:170,unch:99,prot:52,cont:9,expsd:10,src:"est"},
- {name:"Luis Severino",team:"NYM",total:150,unch:96,prot:40,cont:8,expsd:6,src:"est"},
- {name:"Bryan Woo",team:"SEA",total:149,unch:95,prot:40,cont:7,expsd:7,src:"est"},
- {name:"Luis Castillo",team:"SEA",total:164,unch:95,prot:50,cont:8,expsd:11,src:"est"},
- {name:"Jacob deGrom",team:"TEX",total:144,unch:92,prot:39,cont:7,expsd:6,src:"est"},
- {name:"Cristopher Sánchez",team:"PHI",total:159,unch:92,prot:49,cont:8,expsd:10,src:"est"},
- {name:"Clay Holmes",team:"CLE",total:152,unch:88,prot:46,cont:8,expsd:10,src:"est"},
- {name:"Zack Wheeler",team:"PHI",total:132,unch:84,prot:36,cont:7,expsd:5,src:"est"},
- {name:"Zack Littell",team:"TB",total:153,unch:80,prot:49,cont:8,expsd:16,src:"est"},
- {name:"Sugano, Tomoyuki",team:"LAD",total:107,unch:68,prot:32,cont:7,expsd:0,src:"sc"},
- {name:"Nathan Eovaldi",team:"TEX",total:106,unch:68,prot:28,cont:5,expsd:5,src:"est"},
- {name:"Seth Lugo",team:"KC",total:131,unch:68,prot:42,cont:7,expsd:14,src:"est"},
- {name:"Tyler Anderson",team:"LAA",total:129,unch:59,prot:41,cont:6,expsd:23,src:"est"},
- {name:"Taijuan Walker",team:"CIN",total:113,unch:52,prot:36,cont:6,expsd:19,src:"est"},
- {name:"Glasnow, Tyler",team:"LAD",total:70,unch:45,prot:16,cont:4,expsd:5,src:"sc"},
- {name:"Snell, Blake",team:"LAD",total:68,unch:43,prot:16,cont:7,expsd:2,src:"sc"},
- {name:"Casparius, Ben",team:"LAD",total:45,unch:31,prot:9,cont:1,expsd:4,src:"sc"},
- {name:"Sasaki, Roki",team:"LAD",total:41,unch:31,prot:9,cont:1,expsd:0,src:"sc"},
- {name:"Scott, Tanner",team:"LAD",total:38,unch:24,prot:12,cont:1,expsd:1,src:"sc"},
- {name:"Díaz, Edwin",team:"LAD",total:38,unch:23,prot:12,cont:1,expsd:2,src:"sc"},
- {name:"Dreyer, Jack",team:"LAD",total:39,unch:21,prot:14,cont:3,expsd:1,src:"sc"},
- {name:"Sheehan, Emmet",team:"LAD",total:35,unch:19,prot:14,cont:1,expsd:1,src:"sc"},
- {name:"Vesia, Alex",team:"LAD",total:32,unch:18,prot:11,cont:2,expsd:1,src:"sc"},
- {name:"Wrobleski, Justin",team:"LAD",total:30,unch:24,prot:5,cont:1,expsd:0,src:"sc"},
- {name:"Treinen, Blake",team:"LAD",total:21,unch:14,prot:6,cont:0,expsd:1,src:"sc"},
- {name:"Klein, Will",team:"LAD",total:12,unch:8,prot:3,cont:1,expsd:0,src:"sc"},
- {name:"Henriquez, Edgardo",team:"LAD",total:5,unch:5,prot:0,cont:0,expsd:0,src:"sc"},
-];
+// Dynamically built from D.pitcherMeta USS/ULS data
+function buildABSPitchers(){
+ if(!D||!D.pitcherMeta) return [];
+ return Object.entries(D.pitcherMeta).filter(function(e){
+  return (e[1].shadow_decisions||0)>=30;
+ }).map(function(e){
+  var n=e[0], m=e[1];
+  var total=m.shadow_decisions||0;
+  var stolen=m.stolen_strikes||0;
+  var uss=m.uss||0;
+  var contested=m.contested||0;
+  var unch=total-stolen;
+  // USS = uncontested stolen strikes (not worth challenging) → Protected
+  // contested = stolen_strikes - uss (would be challenged) → Exposed
+  return {name:n, team:m.team, total:total, unch:unch, prot:uss, cont:0, expsd:contested,
+          uss_runs:m.uss_runs||0, uls_runs:m.uls_runs||0, net_abs:m.net_abs||0};
+ });
+}
 
 function initABSValue(){
- var teams=[...new Set(ABS_PITCHERS.map(function(p){return p.team}))].sort();
+ var pitchers=buildABSPitchers();
+ var teams=[...new Set(pitchers.map(function(p){return p.team}))].sort();
  var tSel=document.getElementById('av-team');
  tSel.innerHTML='<option value="ALL">All Teams</option>'+teams.map(function(t){return '<option value="'+t+'">'+t+'</option>'}).join('');
  updateAVPitcherList();
  buildABSValue();
 }
 function updateAVPitcherList(){
+ var pitchers=buildABSPitchers();
  var team=document.getElementById('av-team').value;
- var list=team==='ALL'?ABS_PITCHERS:ABS_PITCHERS.filter(function(p){return p.team===team});
+ var list=team==='ALL'?pitchers:pitchers.filter(function(p){return p.team===team});
+ list.sort(function(a,b){return b.unch-a.unch});
  var pSel=document.getElementById('av-pitcher');
- pSel.innerHTML='<option value="ALL">All ('+list.length+')</option>'+list.map(function(p){return '<option value="'+p.name+'">'+p.name+'</option>'}).join('');
+ pSel.innerHTML='<option value="ALL">All ('+list.length+')</option>'+list.map(function(p){return '<option value="'+p.name+'">'+shortN(p.name)+'</option>'}).join('');
 }
 function tierBg(rate){return rate>=0.7?'var(--green-bg)':rate>=0.5?'#fef9c3':'#fee2e2';}
 function tierTx(rate){return rate>=0.7?'var(--green)':rate>=0.5?'#854d0e':'var(--neg)';}
 function buildABSValue(){
+ var pitchers=buildABSPitchers();
  var team=document.getElementById('av-team').value;
  var pitcher=document.getElementById('av-pitcher').value;
  updateAVPitcherList();
- var rows=ABS_PITCHERS;
+ var rows=pitchers;
  if(team!=='ALL') rows=rows.filter(function(p){return p.team===team});
  if(pitcher!=='ALL') rows=rows.filter(function(p){return p.name===pitcher});
- var tU=0,tP=0,tC=0,tE=0,tT=0;
- rows.forEach(function(r){tU+=r.unch;tP+=r.prot;tC+=r.cont;tE+=r.expsd;tT+=r.total;});
+ var tU=0,tP=0,tC=0,tE=0,tT=0,tUssR=0,tUlsR=0;
+ rows.forEach(function(r){tU+=r.unch;tP+=r.prot;tC+=r.cont;tE+=r.expsd;tT+=r.total;tUssR+=r.uss_runs;tUlsR+=r.uls_runs;});
  document.getElementById('av-total').textContent=tT.toLocaleString();
  var h='';
- h+='<div class="panel" style="margin-top:16px"><div class="panel-head"><span class="dot" style="background:var(--green)"></span> Four-Tier Classification</div>';
+ h+='<div class="panel" style="margin-top:16px"><div class="panel-head"><span class="dot" style="background:var(--green)"></span> ABS Tier Classification — '+rows.length+' Pitchers</div>';
  function avbar(label,n,color){
   var pct=tT>0?(n/tT*100).toFixed(1):0;
-  return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><div style="width:200px;text-align:right;font-size:12px;font-weight:600">'+label+'</div><div style="flex:1;height:22px;background:var(--bg2);border-radius:4px;overflow:hidden;position:relative"><div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:4px"></div><div style="position:absolute;top:0;left:8px;line-height:22px;font-size:11px;font-weight:600;color:'+(parseFloat(pct)>15?'#fff':'var(--text)')+'">'+n+' ('+pct+'%)</div></div></div>';
+  return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><div style="width:200px;text-align:right;font-size:12px;font-weight:600">'+label+'</div><div style="flex:1;height:22px;background:var(--bg2);border-radius:4px;overflow:hidden;position:relative"><div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:4px"></div><div style="position:absolute;top:0;left:8px;line-height:22px;font-size:11px;font-weight:600;color:'+(parseFloat(pct)>15?'#fff':'var(--text)')+'">'+n.toLocaleString()+' ('+pct+'%)</div></div></div>';
  }
- h+=avbar('Unchallengeable',tU,'var(--green)');
- h+=avbar('Overturnable + Protected',tP,'var(--neu)');
- h+=avbar('Overturnable + Contested',tC,'var(--orange)');
- h+=avbar('Overturnable + Exposed',tE,'var(--neg)');
- h+='<div style="display:flex;gap:24px;margin-top:12px;font-size:12px">';
- h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">Unchallengeable Value</div><strong style="color:var(--green)">'+(tU*0.14).toFixed(1)+' runs preserved</strong></div>';
- h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">Runs at Risk</div><strong style="color:var(--neg)">'+(tE*0.14).toFixed(1)+' runs exposed</strong></div>';
- h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">Threat Range</div><strong>'+tE+'–'+(tE+tP)+' CS</strong></div>';
+ h+=avbar('Unchallengeable (in-zone CS)',tU,'var(--green)');
+ h+=avbar('USS — Uncontested (not worth challenging)',tP,'var(--neu)');
+ h+=avbar('Exposed (would be challenged)',tE,'var(--neg)');
+ h+='<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;flex-wrap:wrap">';
+ h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">USS Runs Lost</div><strong style="color:var(--neg)">&minus;'+tUssR.toFixed(1)+'</strong></div>';
+ h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">ULS Runs Recovered</div><strong style="color:var(--green)">+'+tUlsR.toFixed(1)+'</strong></div>';
+ h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">Net ABS</div><strong style="color:'+((tUlsR-tUssR)>=0?'var(--green)':'var(--neg)')+'">'+(tUlsR-tUssR>=0?'+':'')+(tUlsR-tUssR).toFixed(1)+'</strong></div>';
+ h+='<div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase">Exposed Strikes</div><strong>'+tE.toLocaleString()+' CS at risk</strong></div>';
  h+='</div></div>';
  h+='<div class="panel" style="margin-top:16px"><div class="panel-head"><span class="dot" style="background:var(--accent)"></span> Per-Pitcher Breakdown</div>';
  h+='<div style="overflow-x:auto"><table><thead><tr>';
- ['Pitcher','Team','Shadow','Unch','Unch%','Prot','Cont','Expsd','Exp%','Profile','Runs'].forEach(function(c){
+ ['Pitcher','Team','Shadow CS','Unch','Unch%','USS','Exposed','Exp%','Profile','USS Runs','Net ABS'].forEach(function(c){
   h+='<th style="text-align:'+(c==='Pitcher'||c==='Team'?'left':'right')+'">'+c+'</th>';
  });
  h+='</tr></thead><tbody>';
@@ -1975,17 +1957,18 @@ function buildABSValue(){
   var ePct=r.total>0?(r.expsd/r.total*100).toFixed(1):'0.0';
   var prof=parseFloat(ePct)<=7?'A':parseFloat(ePct)<=13?'B':'C';
   var pCol=prof==='A'?'var(--green)':prof==='B'?'var(--orange)':'var(--neg)';
-  var est=r.src==='est'?' <span style="font-size:8px;color:var(--text3)">est</span>':'';
-  h+='<tr><td style="font-weight:600">'+r.name+est+'</td><td style="font-size:10px;color:var(--text2)">'+r.team+'</td>';
+  var netCol=r.net_abs>0.5?'up':r.net_abs<-0.5?'dn':'';
+  h+='<tr class="clickable" onclick="jumpP(\''+esc(r.name)+'\')">';
+  h+='<td style="font-weight:600">'+shortN(r.name)+'</td><td style="font-size:10px;color:var(--text2)">'+r.team+'</td>';
   h+='<td style="text-align:right">'+r.total+'</td>';
   h+='<td style="text-align:right;font-weight:600;color:var(--green)">'+r.unch+'</td>';
   h+='<td style="text-align:right;font-weight:600;color:var(--green)">'+uPct+'%</td>';
   h+='<td style="text-align:right;color:var(--text2)">'+r.prot+'</td>';
-  h+='<td style="text-align:right;color:var(--orange)">'+r.cont+'</td>';
   h+='<td style="text-align:right;font-weight:600;color:var(--neg)">'+r.expsd+'</td>';
   h+='<td style="text-align:right;color:var(--neg)">'+ePct+'%</td>';
   h+='<td style="text-align:center"><span style="background:'+pCol+';color:#fff;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700">'+prof+'</span></td>';
-  h+='<td style="text-align:right;font-weight:600;color:var(--green)">'+(r.unch*0.14).toFixed(1)+'</td></tr>';
+  h+='<td style="text-align:right;font-weight:600;color:var(--neg)">&minus;'+r.uss_runs.toFixed(1)+'</td>';
+  h+='<td style="text-align:right;font-weight:600" class="'+netCol+'">'+(r.net_abs>=0?'+':'')+r.net_abs.toFixed(1)+'</td></tr>';
  });
  h+='</tbody></table></div></div>';
  document.getElementById('av-body').innerHTML=h;
